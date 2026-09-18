@@ -144,48 +144,30 @@ def crear_cuenta_ott(
             page.wait_for_selector("text='Registro Simpletv+'")
             
             # Nombres y apellidos
-            page.get_by_label("Nombre").click(force=True)
-            page.get_by_label("Nombre").fill(nombre)
+            page.get_by_label("Nombre").fill(nombre, force=True)
             page.get_by_label("Nombre").blur()
             
-            page.get_by_label("Apellido").click(force=True)
-            page.get_by_label("Apellido").fill(apellido)
+            page.get_by_label("Apellido").fill(apellido, force=True)
             page.get_by_label("Apellido").blur()
             
             # Llenar Teléfono
-            # El usuario indicó que no es necesario cambiar el prefijo, y tocarlo podría estar rompiendo el estado de React.
-            # page.locator("select[name='phone.area']").select_option(prefijo_tel)
-            
-            page.locator("input[name='phone.number']").click(force=True)
-            page.locator("input[name='phone.number']").fill(numero_tel)
+            page.locator("input[name='phone.number']").fill(numero_tel, force=True)
             page.locator("input[name='phone.number']").blur()
             
             # Llenar Correo
-            page.locator("input[name='email']").click(force=True)
-            page.locator("input[name='email']").fill(email_generado)
+            page.locator("input[name='email']").fill(email_generado, force=True)
             page.locator("input[name='email']").blur()
             time.sleep(1)
             
-            # Checkbox: Clicar el texto para asegurar que React dispare sus eventos sintéticos
+            # Checkbox: Clicar el texto
             page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
             
-            # Usar múltiples estrategias para garantizar el clic
-            btn_continuar = page.locator("button[type='submit']:visible, button:visible:has-text('Continuar')").first
-            try:
-                # Intento 1: JS puro (Infalible contra superposiciones CSS)
-                btn_continuar.evaluate("node => node.click()")
-            except:
-                pass
-                
-            # Intento 2: Clic normal con force=True para evitar scrolls locos
-            try:
-                btn_continuar.click(force=True)
-            except:
-                pass
+            # Clicar Continuar
+            btn_continuar = page.get_by_role("button", name="Continuar").last
+            btn_continuar.click(force=True)
             
-            # Intento 3: Enviar Enter estando enfocados en el último campo
-            page.keyboard.press("Enter")
+            # NO enviaremos Enter porque puede interactuar negativamente con el checkbox si quedó enfocado
             
             # DEBUG SCREENSHOT 1
             page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_after_click.png"))
@@ -261,16 +243,13 @@ def crear_cuenta_ott(
             cedula_input.fill(cedula.replace("-",""))
             cedula_input.blur()
             
-            # Checkbox: Usar click text con force=True
+            # Checkbox P5
             page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
-            checkbox_p5 = page.locator("input[type='checkbox']").first
-            try:
-                checkbox_p5.evaluate("node => node.click()")
-            except:
-                pass
             
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            # Clicar Continuar
+            btn_continuar_p5 = page.get_by_role("button", name="Continuar").last
+            btn_continuar_p5.click(force=True)
             timer.stop_step()
             
             # P6: Dirección
