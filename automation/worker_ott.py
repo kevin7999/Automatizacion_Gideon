@@ -242,19 +242,25 @@ def crear_cuenta_ott(
 
             # P5: Carrito y Generación de contrato
             timer.start_step("P5: Carrito y Contrato")
-            # Aparece el carrito "Resumen de tu plan"
-            page.wait_for_selector("text='Debe completar el registro de datos para continuar con el pago'")
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             
-            # Modal: Generación de contrato (Paso 1 de 4)
-            page.wait_for_selector("text='Generación de contrato'")
-            page.get_by_label("Nombre").fill(nombre)
-            page.get_by_label("Apellido").fill(apellido)
+            # El modal "Generación de contrato" aparece automáticamente después del OTP
+            page.wait_for_selector("text='Generación de contrato'", timeout=20000)
             
-            # Cédula
-            page.get_by_label("Cédula de identidad").fill(cedula.replace("-","")) # Si es J1234567, quitamos guiones
+            # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
+            cedula_input = page.locator("input[placeholder*='cédula de identidad'], input[placeholder*='Cédula']").first
+            cedula_input.click()
+            cedula_input.fill(cedula.replace("-",""))
+            cedula_input.blur()
             
-            page.locator("input[type='checkbox']").check()
+            # Checkbox: Usar JS click
+            page.locator("text='Declaro que toda la información proporcionada es real'").click()
+            time.sleep(1)
+            checkbox_p5 = page.locator("input[type='checkbox']").first
+            try:
+                checkbox_p5.evaluate("node => node.click()")
+            except:
+                pass
+            
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
             
