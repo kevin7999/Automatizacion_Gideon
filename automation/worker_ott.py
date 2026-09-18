@@ -79,12 +79,19 @@ def crear_cuenta_ott(
         prefijo_tel = telefono_completo[:4]
         numero_tel = telefono_completo[4:]
         
-        # OTT siempre es Persona Natural
-        prefijo_ced = "V"
+        # Leer tipo de documento de la configuración
+        tipo_doc = config_cuenta.get("tipo_doc", "Venezuelan")
+        if tipo_doc == "Foreigner":
+            prefijo_ced = "E"
+        elif tipo_doc == "Passport":
+            prefijo_ced = "P"
+        else:
+            prefijo_ced = "V"
+            
         cedula = str(random.randint(10000000, 30000000))
         nombre = "Gideon"
         apellido = "Test"
-        rif_completo = f"V-{cedula}"
+        rif_completo = f"{prefijo_ced}-{cedula}"
             
         email_base = sys_config.get("email_test_generico", "testgatb")
         if "@" in email_base:
@@ -172,6 +179,25 @@ def crear_cuenta_ott(
             page.locator("input[name='email']").blur()
             time.sleep(1)
             
+            # Seleccionar tipo de documento (V, E, P) mediante inyección JS
+            page.evaluate(f"""(prefijo) => {{
+                const selects = Array.from(document.querySelectorAll('select'));
+                // Buscar el select que tenga las opciones V, E, P
+                const select = selects.find(s => {{
+                    const opts = Array.from(s.options).map(o => o.text.trim().toUpperCase());
+                    return opts.includes('V') || opts.includes('E') || opts.includes('P') || opts.includes('V-') || opts.includes('E-');
+                }});
+                if(select) {{
+                    const target = Array.from(select.options).find(o => o.text.trim().toUpperCase().startsWith(prefijo) || o.value.toUpperCase().startsWith(prefijo));
+                    if(target) {{
+                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                        nativeSetter.call(select, target.value);
+                        select.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    }}
+                }}
+            }}""", prefijo_ced)
+            time.sleep(0.5)
+            
             # Checkbox: Clicar el texto
             page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
@@ -254,6 +280,24 @@ def crear_cuenta_ott(
             
             # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
             cedula_input = page.locator("input[placeholder*='cédula de identidad'], input[placeholder*='Cédula']").first
+                        # Seleccionar tipo de documento (V, E, P) mediante inyección JS
+            page.evaluate(f"""(prefijo) => {
+                const selects = Array.from(document.querySelectorAll('select'));
+                // Buscar el select que tenga las opciones V, E, P
+                const select = selects.find(s => {
+                    const opts = Array.from(s.options).map(o => o.text.trim().toUpperCase());
+                    return opts.includes('V') || opts.includes('E') || opts.includes('P') || opts.includes('V-') || opts.includes('E-');
+                });
+                if(select) {
+                    const target = Array.from(select.options).find(o => o.text.trim().toUpperCase().startsWith(prefijo) || o.value.toUpperCase().startsWith(prefijo));
+                    if(target) {
+                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                        nativeSetter.call(select, target.value);
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            }""", prefijo_ced)
+            time.sleep(0.5)
             cedula_input.click(force=True)
             cedula_input.fill(cedula.replace("-",""))
             cedula_input.blur()
