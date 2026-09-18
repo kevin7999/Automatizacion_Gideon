@@ -148,12 +148,25 @@ def crear_cuenta_ott(
             
             # Checkbox
             page.locator("input[type='checkbox']").check()
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            
+            # Usar múltiples estrategias para garantizar el clic
+            btn_continuar = page.locator("button[type='submit']:visible, button:visible:has-text('Continuar')").first
+            try:
+                # Intento 1: JS puro (Infalible contra superposiciones CSS)
+                btn_continuar.evaluate("node => node.click()")
+            except:
+                # Intento 2: Clic normal
+                btn_continuar.click()
+            
+            # Intento 3: Enviar Enter estando enfocados en el último campo
+            page.keyboard.press("Enter")
+            
             timer.stop_step()
 
             # P4: OTP Maildrop
             timer.start_step("P4: Validar OTP")
-            page.wait_for_selector("text='Verificación de correo electrónico'", timeout=20000)
+            # Esperar a que la pantalla cambie o aparezcan las cajitas del OTP (usamos "código" o "verificación" o esperamos que el botón cambie)
+            page.wait_for_selector("text=/código|verificación|reenviar/i, input[autocomplete='one-time-code']", timeout=20000)
             
             # ir a maildrop
             log_callback(f"[Hilo {id_hilo}] ⏳ Esperando código OTP en {email_generado}...")
