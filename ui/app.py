@@ -23,6 +23,7 @@ from core.correlativos import (
 )
 from core.generadores import limpiar_texto_crm
 from automation.worker import crear_cuenta_individual
+from automation.worker_ott import crear_cuenta_ott
 
 CATALOGO_PLANES = cargar_catalogo_planes()
 CATALOGO_DIRECCIONES = cargar_catalogo_direcciones()
@@ -900,8 +901,36 @@ class AppGideon(ctk.CTk):
         ).pack(expand=True)
 
     def agregar_lote_ott(self):
-        # Todo: Implement the enqueuing logic pointing to the OTT script
-        messagebox.showinfo("En Desarrollo", "El encolamiento de OTT está en desarrollo.")
+        plan_ott = self.cmb_plan_ott.get()
+        if not plan_ott:
+            messagebox.showwarning("Plan Inválido", "Por favor selecciona un plan OTT válido.")
+            return
+
+        tipo_persona = self.cmb_persona_ott.get()
+        
+        try:
+            cant = int(self.spn_cantidad_ott.get())
+        except ValueError:
+            cant = 1
+
+        for _ in range(cant):
+            item = {
+                "tipo_persona": tipo_persona, 
+                "ubicacion": "Miranda",  # Fixed as requested
+                "plan_seleccionado": plan_ott,
+                "aplicar_promocion": False,
+                "is_ott": True
+            }
+            if tipo_persona == "Persona natural":
+                item["tipo_doc"] = "Venezuelan"
+            else:
+                item["tipo_rif"] = "Legal"
+                
+            item = self.preparar_item_cuenta(item)
+            self.matriz_cuentas.append(item)
+
+        self.refrescar_vista_cola()
+        self.log_salida(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}) a la Cola Principal.")
 
     def build_tab_reportes(self):
         # 1. HEADER CON TARJETAS KPI DE HISTORIAL
@@ -2152,13 +2181,22 @@ class AppGideon(ctk.CTk):
                             self.fallidas_tanda_actual.append(dict(c_item))
                     return _cb
 
-                executor.submit(
-                    crear_cuenta_individual,
-                    i, config, self.config_sys, self.log_salida,
-                    _crear_cb(config),
-                    self.cancel_event,
-                    self.update_thread_status
-                )
+                if config.get("is_ott"):
+                    executor.submit(
+                        crear_cuenta_ott,
+                        i, config, self.config_sys, self.log_salida,
+                        _crear_cb(config),
+                        self.cancel_event,
+                        self.update_thread_status
+                    )
+                else:
+                    executor.submit(
+                        crear_cuenta_individual,
+                        i, config, self.config_sys, self.log_salida,
+                        _crear_cb(config),
+                        self.cancel_event,
+                        self.update_thread_status
+                    )
                 time.sleep(6)
         
         def _finalizar():
