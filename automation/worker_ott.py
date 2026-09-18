@@ -232,7 +232,16 @@ def crear_cuenta_ott(
             # Dar chance a React de actualizar el botón
             time.sleep(1)
                 
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            # Intento 1: JavaScript puro para saltar cualquier restricción de estado disabled
+            btn_continuar = page.locator("button:visible:has-text('Continuar')").first
+            try:
+                btn_continuar.evaluate("node => node.click()")
+            except:
+                pass
+                
+            # Intento 2: Enviar "Enter" directo
+            page.keyboard.press("Enter")
+            
             timer.stop_step()
 
             # P5: Carrito y Generación de contrato
