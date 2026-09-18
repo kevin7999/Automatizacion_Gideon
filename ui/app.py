@@ -800,6 +800,40 @@ class AppGideon(ctk.CTk):
     # -------------------------------------------------------------
 
     def build_tab_ott(self):
+        # 1. TARJETAS DE MÉTRICAS KPI (HEADER PRO CON IMÁGENES PNG)
+        self.frame_kpis_ott = ctk.CTkFrame(self.tab_ott, fg_color="transparent")
+        self.frame_kpis_ott.pack(fill="x", padx=5, pady=(0, 10))
+
+        assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+        if not os.path.exists(assets_dir) and getattr(sys, '_MEIPASS', None):
+            assets_dir = os.path.join(sys._MEIPASS, "ui", "assets")
+        if not os.path.exists(assets_dir):
+            assets_dir = os.path.join(os.getcwd(), "ui", "assets")
+
+        self.card_total_ott = self.crear_card_kpi(
+            self.frame_kpis_ott, "Total en Cola", "0", ("#d9480f", "#ff7800"),
+            icono="📺", imagen_path=os.path.join(assets_dir, "kpi_cola.png")
+        )
+        self.card_total_ott.pack(side="left", fill="x", expand=True, padx=4)
+
+        self.card_ejecucion_ott = self.crear_card_kpi(
+            self.frame_kpis_ott, "En Ejecución", "0", ("#c2410c", "#ffa94d"),
+            icono="⚡", imagen_path=os.path.join(assets_dir, "kpi_ejecucion.png")
+        )
+        self.card_ejecucion_ott.pack(side="left", fill="x", expand=True, padx=4)
+
+        self.card_exito_ott = self.crear_card_kpi(
+            self.frame_kpis_ott, "Exitosas", "0", ("#2b8a3e", "#51cf66"),
+            icono="✅", imagen_path=os.path.join(assets_dir, "kpi_exito.png")
+        )
+        self.card_exito_ott.pack(side="left", fill="x", expand=True, padx=4)
+
+        self.card_fallo_ott = self.crear_card_kpi(
+            self.frame_kpis_ott, "Fallidas", "0", ("#c92a2a", "#ff6b6b"),
+            icono="❌", imagen_path=os.path.join(assets_dir, "kpi_fallo.png")
+        )
+        self.card_fallo_ott.pack(side="left", fill="x", expand=True, padx=4)
+
         self.frame_ott_body = ctk.CTkFrame(self.tab_ott, fg_color="transparent")
         self.frame_ott_body.pack(fill="both", expand=True)
 
@@ -812,7 +846,7 @@ class AppGideon(ctk.CTk):
 
         hdr_form = ctk.CTkFrame(card_form, fg_color="transparent")
         hdr_form.pack(fill="x", padx=12, pady=(10, 8))
-        ctk.CTkLabel(hdr_form, text="⚙️ CONFIGURACIÓN PLAN OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#d9480f", "#ff922b")).pack(side="left")
+        ctk.CTkLabel(hdr_form, text="🎯 CONFIGURACIÓN PLAN OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#d9480f", "#ff922b")).pack(side="left")
 
         # Plan OTT
         ctk.CTkLabel(card_form, text="Seleccione el Plan OTT:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(2, 2))
@@ -822,6 +856,13 @@ class AppGideon(ctk.CTk):
             card_form, values=planes_ott_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
         )
         self.cmb_plan_ott.pack(fill="x", padx=12, pady=(0, 8))
+
+        # Tipo de documento
+        ctk.CTkLabel(card_form, text="Tipo de documento (Cliente Natural):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(10, 2))
+        self.cmb_doc_ott = ctk.CTkOptionMenu(
+            card_form, values=["Venezolano", "Extranjero", "Pasaporte"], fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
+        )
+        self.cmb_doc_ott.pack(fill="x", padx=12, pady=(0, 8))
 
         # Fila de Cantidad
         frame_cant = ctk.CTkFrame(card_form, fg_color="transparent")
@@ -836,7 +877,7 @@ class AppGideon(ctk.CTk):
             card_form, text="➕ Agregar a la Cola OTT", command=self.agregar_lote_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=34
         ).pack(fill="x", padx=12, pady=(0, 12))
 
-        # --- PANEL DERECHO: COLA Y EJECUCIÓN OTT ---
+        # --- PANEL DERECHO: COLA, EJECUCIÓN Y CONSOLA OTT ---
         self.frame_ott_right = ctk.CTkFrame(self.frame_ott_body, corner_radius=12, fg_color="transparent")
         self.frame_ott_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
@@ -849,7 +890,7 @@ class AppGideon(ctk.CTk):
         self.lbl_cola_badge_ott = ctk.CTkLabel(frame_cola_hdr, text="0 en espera", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#495057", "#adb5bd"))
         self.lbl_cola_badge_ott.pack(side="right")
 
-        self.frame_cola_scroll_ott = ctk.CTkScrollableFrame(card_cola, height=165, fg_color=("#f1f3f5", "#141517"), corner_radius=8)
+        self.frame_cola_scroll_ott = ctk.CTkScrollableFrame(card_cola, height=130, fg_color=("#f1f3f5", "#141517"), corner_radius=8)
         self.frame_cola_scroll_ott.pack(fill="x", padx=10, pady=(0, 8))
 
         # Acciones
@@ -857,24 +898,65 @@ class AppGideon(ctk.CTk):
         card_exec.pack(fill="x", padx=0, pady=(0, 8))
 
         frame_exec_inner = ctk.CTkFrame(card_exec, fg_color="transparent")
-        frame_exec_inner.pack(fill="x", padx=12, pady=12)
+        frame_exec_inner.pack(fill="x", padx=12, pady=8)
         
         self.btn_iniciar_ott = ctk.CTkButton(
-            frame_exec_inner, text="▶️ INICIAR PROCESAMIENTO OTT", command=self.iniciar_proceso_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=34
+            frame_exec_inner, text="🚀 INICIAR PROCESAMIENTO OTT", command=self.iniciar_proceso_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=30
         )
         self.btn_iniciar_ott.pack(side="right", fill="x", expand=True, padx=(10, 0))
         
         self.btn_cancelar_ott = ctk.CTkButton(
-            frame_exec_inner, text="⏹️ Cancelar", command=self.cancelar_proceso_ott, fg_color=("#f8d7da", "#401c1c"), hover_color=("#f5c2c7", "#521616"), text_color=("#721c24", "#e599f7"), font=ctk.CTkFont(size=12, weight="bold"), height=34, width=100, state="disabled"
+            frame_exec_inner, text="🛑 Cancelar", command=self.cancelar_proceso_ott, fg_color=("#f8d7da", "#401c1c"), hover_color=("#f5c2c7", "#521616"), text_color=("#721c24", "#e599f7"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=100, state="disabled"
         )
         self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
         
         ctk.CTkButton(
-            frame_exec_inner, text="🗑️ Limpiar Cola", command=self.limpiar_cola_ott, fg_color=("#e9ecef", "#25262b"), hover_color=("#dee2e6", "#2c2e33"), text_color=("#495057", "#ced4da"), font=ctk.CTkFont(size=12, weight="bold"), height=34, width=110
+            frame_exec_inner, text="🧹 Limpiar Cola", command=self.limpiar_cola_ott, fg_color=("#e9ecef", "#25262b"), hover_color=("#dee2e6", "#2c2e33"), text_color=("#495057", "#ced4da"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=110
         ).pack(side="left")
+
+        # 3. Card de Consola de Monitoreo Pro (Sólo lectura) para OTT
+        card_consola_ott = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, border_color=("#ced4da", "#2c2e33"), border_width=1, fg_color=("#ffffff", "#1a1b1e"))
+        card_consola_ott.pack(fill="both", expand=True, padx=0, pady=(0, 0))
+
+        frame_consola_hdr_ott = ctk.CTkFrame(card_consola_ott, fg_color="transparent")
+        frame_consola_hdr_ott.pack(fill="x", padx=12, pady=(8, 4))
+
+        ctk.CTkLabel(frame_consola_hdr_ott, text="🖥️ Consola de Monitoreo OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+
+        ctk.CTkButton(frame_consola_hdr_ott, text="🧹 Limpiar", width=65, height=22, command=self.limpiar_log_consola_ott, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11)).pack(side="right", padx=(5, 0))
+
+        self.txt_log_ott = ctk.CTkTextbox(card_consola_ott, height=130, fg_color=("#18191c", "#0d0e11"), text_color="#20c997", font=ctk.CTkFont(family="Consolas", size=11), corner_radius=6, border_width=1, border_color=("#495057", "#2c2e33"))
+        self.txt_log_ott.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.txt_log_ott.configure(state="disabled")
 
         # Refrescar vista por defecto
         self.refrescar_vista_cola_ott()
+
+    def update_kpis_ui_ott(self, ejecucion=0, exito=0, fallo=0):
+        if ejecucion != 0:
+            current = int(self.card_ejecucion_ott.winfo_children()[1].cget("text"))
+            self.card_ejecucion_ott.winfo_children()[1].configure(text=str(max(0, current + ejecucion)))
+        if exito != 0:
+            current = int(self.card_exito_ott.winfo_children()[1].cget("text"))
+            self.card_exito_ott.winfo_children()[1].configure(text=str(current + exito))
+        if fallo != 0:
+            current = int(self.card_fallo_ott.winfo_children()[1].cget("text"))
+            self.card_fallo_ott.winfo_children()[1].configure(text=str(current + fallo))
+
+    def log_salida_ott(self, mensaje):
+        from datetime import datetime
+        hora = datetime.now().strftime("%H:%M:%S")
+        self.txt_log_ott.configure(state="normal")
+        self.txt_log_ott.insert("end", f"[{hora}] {mensaje}\n")
+        self.txt_log_ott.see("end")
+        self.txt_log_ott.configure(state="disabled")
+        print(f"[OTT] [{hora}] {mensaje}")
+
+    def limpiar_log_consola_ott(self):
+        self.txt_log_ott.configure(state="normal")
+        self.txt_log_ott.delete("1.0", "end")
+        self.txt_log_ott.configure(state="disabled")
+        self.log_salida_ott("🧹 Consola OTT reiniciada.")
 
     def refrescar_vista_cola_ott(self):
         for child in self.frame_cola_scroll_ott.winfo_children():
@@ -897,12 +979,12 @@ class AppGideon(ctk.CTk):
                 
                 ctk.CTkLabel(row_frame, text=f"{i}", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#ffffff"), fg_color="#ff7800", width=22, corner_radius=4).pack(side="left", padx=(6, 8), pady=10)
                 ctk.CTkLabel(row_frame, text="NATURAL", font=ctk.CTkFont(size=10, weight="bold"), text_color="#1864ab", width=55).pack(side="left")
-                ctk.CTkLabel(row_frame, text=f"{c['plan_seleccionado']}", font=ctk.CTkFont(size=11), text_color=("#495057", "#ced4da")).pack(side="left", padx=(10, 0), expand=True, anchor="w")
+                ctk.CTkLabel(row_frame, text=f"{c['plan_seleccionado']} ({c['tipo_doc']})", font=ctk.CTkFont(size=11), text_color=("#495057", "#ced4da")).pack(side="left", padx=(10, 0), expand=True, anchor="w")
                 
                 def make_remover(index):
                     return lambda: self.remover_de_cola_ott(index)
                 
-                btn_del = ctk.CTkButton(row_frame, text="✖", width=26, height=26, fg_color="transparent", hover_color=("#ffe3e3", "#401c1c"), text_color=("#fa5252", "#ff6b6b"), command=make_remover(i-1))
+                btn_del = ctk.CTkButton(row_frame, text="🗑", width=26, height=26, fg_color="transparent", hover_color=("#ffe3e3", "#401c1c"), text_color=("#fa5252", "#ff6b6b"), command=make_remover(i-1))
                 btn_del.pack(side="right", padx=6)
 
     def remover_de_cola_ott(self, indice):
@@ -914,7 +996,7 @@ class AppGideon(ctk.CTk):
         self.matriz_cuentas_ott.clear()
         self.fallidas_tanda_actual_ott.clear()
         self.refrescar_vista_cola_ott()
-        self.log_salida("🗑️ Cola OTT limpiada.")
+        self.log_salida_ott("🗑️ Cola OTT limpiada.")
 
     def agregar_lote_ott(self):
         plan_ott = self.cmb_plan_ott.get()
@@ -927,6 +1009,9 @@ class AppGideon(ctk.CTk):
         except ValueError:
             cant = 1
 
+        tipo_doc_ott = self.cmb_doc_ott.get()
+        tipo_doc_eng = "Venezuelan" if tipo_doc_ott == "Venezolano" else ("Foreigner" if tipo_doc_ott == "Extranjero" else "Passport")
+
         for _ in range(cant):
             item = {
                 "tipo_persona": "Persona natural", 
@@ -934,13 +1019,13 @@ class AppGideon(ctk.CTk):
                 "plan_seleccionado": plan_ott,
                 "aplicar_promocion": False,
                 "is_ott": True,
-                "tipo_doc": "Venezuelan"
+                "tipo_doc": tipo_doc_eng
             }
             item = self.preparar_item_cuenta(item)
             self.matriz_cuentas_ott.append(item)
 
         self.refrescar_vista_cola_ott()
-        self.log_salida(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}) a la Cola OTT.")
+        self.log_salida_ott(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}, {tipo_doc_ott}) a la Cola OTT.")
 
     def iniciar_proceso_ott(self):
         if not self.matriz_cuentas_ott:
@@ -952,14 +1037,14 @@ class AppGideon(ctk.CTk):
         self.cancel_event_ott.clear()
         self.fallidas_tanda_actual_ott.clear()
         
-        self.log_salida(f"🚀 Iniciando procesamiento masivo de {len(self.matriz_cuentas_ott)} cuentas OTT...")
+        self.log_salida_ott(f"🚀 Iniciando procesamiento masivo de {len(self.matriz_cuentas_ott)} cuentas OTT...")
         threading.Thread(target=self.ejecutar_hilos_ott, daemon=True).start()
 
     def cancelar_proceso_ott(self):
         if not self.cancel_event_ott.is_set():
             self.cancel_event_ott.set()
             self.btn_cancelar_ott.configure(state="disabled")
-            self.log_salida("🛑 [SISTEMA] Solicitud de CANCELACIÓN OTT recibida...")
+            self.log_salida_ott("🛑 [SISTEMA] Solicitud de CANCELACIÓN OTT recibida...")
 
     def ejecutar_hilos_ott(self):
         num_hilos = self.config_sys.get("hilos_simultaneos", 2)
@@ -967,21 +1052,21 @@ class AppGideon(ctk.CTk):
         with ThreadPoolExecutor(max_workers=num_hilos) as executor:
             for i, config in enumerate(tanda_cuentas, start=1):
                 if self.cancel_event_ott.is_set():
-                    self.log_salida(f"⚠️ Ejecución OTT cancelada.")
+                    self.log_salida_ott(f"🚫 Ejecución OTT cancelada.")
                     break
                 
-                self.update_kpis_ui(ejecucion=1)
+                self.update_kpis_ui_ott(ejecucion=1)
                 
                 def _crear_cb(c_item):
                     def _cb(exito=0, fallo=0):
-                        self.update_kpis_ui(ejecucion=-1, exito=exito, fallo=fallo)
+                        self.update_kpis_ui_ott(ejecucion=-1, exito=exito, fallo=fallo)
                         if fallo > 0:
                             self.fallidas_tanda_actual_ott.append(dict(c_item))
                     return _cb
 
                 executor.submit(
                     crear_cuenta_ott,
-                    i, config, self.config_sys, self.log_salida,
+                    i, config, self.config_sys, self.log_salida_ott,
                     _crear_cb(config),
                     self.cancel_event_ott,
                     self.update_thread_status
@@ -991,9 +1076,9 @@ class AppGideon(ctk.CTk):
         
         def _finalizar():
             if self.cancel_event_ott.is_set():
-                self.log_salida("🛑 Procesamiento OTT cancelado por el usuario.")
+                self.log_salida_ott("🛑 Procesamiento OTT cancelado por el usuario.")
             else:
-                self.log_salida("🎉 Proceso OTT finalizado por completo.")
+                self.log_salida_ott("✅ Proceso OTT finalizado por completo.")
             self.btn_iniciar_ott.configure(state="normal")
             self.btn_cancelar_ott.configure(state="disabled")
             
