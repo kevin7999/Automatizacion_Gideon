@@ -258,41 +258,41 @@ def crear_cuenta_ott(
             
             # Estado
             page.locator("select[name='billingAddress.state']").click(force=True)
-            time.sleep(0.5)
-            page.locator("text=/distrito capital/i").last.click(force=True)
+            time.sleep(1)
+            page.get_by_text("DISTRITO CAPITAL").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Ciudad
             
             # Ciudad
             page.locator("select[name='billingAddress.city']").click(force=True)
-            time.sleep(0.5)
-            page.locator("text=/caracas/i").last.click(force=True)
+            time.sleep(1)
+            page.get_by_text("CARACAS").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Municipio
             
             # Municipio
             page.locator("select[name='billingAddress.municipality']").click(force=True)
-            time.sleep(0.5)
-            page.locator("text=/libertador/i").last.click(force=True)
+            time.sleep(1)
+            page.get_by_text("LIBERTADOR").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Zona
             
             # Zona
             page.locator("select[name='billingAddress.zone']").click(force=True)
-            time.sleep(0.5)
-            page.locator("text=/chacaito/i").last.click(force=True)
+            time.sleep(1)
+            page.get_by_text("CHACAITO").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Código postal
             
             # Código postal
             try:
                 page.locator("select[name='billingAddress.postalCode']").click(force=True)
-                time.sleep(0.5)
-                page.locator("text=/1050/i").last.click(force=True)
+                time.sleep(1)
+                page.get_by_text("1050").last.click(force=True)
             except:
                 pass # A veces se autocompleta o es único
             time.sleep(1)
             
             # Tipo de calle
             page.locator("select[name='billingAddress.streetType']").click(force=True)
-            time.sleep(0.5)
-            page.locator("text=/avenida/i").last.click(force=True)
+            time.sleep(1)
+            page.get_by_text("Avenida").last.click(force=True)
             time.sleep(1)
             
             # Entradas de texto
