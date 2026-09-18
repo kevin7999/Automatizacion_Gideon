@@ -180,9 +180,11 @@ def crear_cuenta_ott(
 
             # P4: OTP Maildrop
             timer.start_step("P4: Validar OTP")
-            # Esperar a que la pantalla cambie o aparezcan las cajitas del OTP (usamos "código" o "verificación" o esperamos que el botón cambie)
+            # Esperar a que la URL cambie indicando que pasamos al OTP
             try:
-                page.wait_for_selector("text=/código|verificación|reenviar/i, input[autocomplete='one-time-code'], input[type='tel']", timeout=20000)
+                page.wait_for_url("**/*validacion-streaming=otp*", timeout=20000)
+                # Esperar un poco a que termine de renderizar el modal de OTP
+                time.sleep(2)
             except Exception as e:
                 # DEBUG SCREENSHOT 2 (If it times out)
                 page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_timeout_otp.png"))
