@@ -92,6 +92,7 @@ def crear_cuenta_ott(
         email_generado = f"{email_base}{nuevo_corr}@maildrop.cc"
         
         log_callback(f"[Hilo {id_hilo}] 📝 OTT: {nombre} {apellido} | {cedula} | {email_generado} | Plan: {plan_ott}")
+        if "page" in locals(): guardar_evidencia(timer.current_step)
         timer.stop_step()
     except Exception as e:
         timer.stop_step("Error")
@@ -109,6 +110,17 @@ def crear_cuenta_ott(
             context = browser.new_context(viewport={"width": 1280, "height": 800})
             page = context.new_page()
             page.set_default_timeout(45000)
+
+            # Helper para capturar evidencias
+            def guardar_evidencia(nombre_paso):
+                try:
+                    paso_limpio = nombre_paso.replace(':', '').replace(' ', '_')
+                    path = os.path.join(os.getcwd(), "Evidencias_QA", f"Hilo{id_hilo}_{email_generado}_{paso_limpio}.png")
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    page.screenshot(path=path, full_page=True)
+                except:
+                    pass
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step()
 
             # P2: Navegación y Selección del Plan
@@ -137,6 +149,7 @@ def crear_cuenta_ott(
             # En la pantalla de variantes, hay botones "Ver canales" o el precio. Hacemos clic en el contenedor.
             # Simplemente le damos a Continuar, por defecto asume la base.
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step()
 
             # P3: Datos Básicos (Modal)
@@ -171,6 +184,8 @@ def crear_cuenta_ott(
             
             # DEBUG SCREENSHOT 1
             page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_after_click.png"))
+            
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             
             timer.stop_step()
 
@@ -223,6 +238,8 @@ def crear_cuenta_ott(
             btn_continuar_otp = page.get_by_role("button", name="Continuar").last
             btn_continuar_otp.click(force=True)
             
+            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
             timer.stop_step()
 
             # P5: Carrito y Generación de contrato
@@ -248,6 +265,7 @@ def crear_cuenta_ott(
             # Clicar Continuar
             btn_continuar_p5 = page.get_by_role("button", name="Continuar").last
             btn_continuar_p5.click(force=True)
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step()
             
             # P6: Dirección
@@ -303,6 +321,7 @@ def crear_cuenta_ott(
             
             btn_continuar_p6 = page.get_by_role("button", name="Continuar").last
             btn_continuar_p6.click(force=True)
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step()
             
             # P7: Datos Adicionales
@@ -342,6 +361,7 @@ def crear_cuenta_ott(
             # Continuar P7
             # Usamos .last para asegurarnos de hacer clic en el botón del modal y no en el del carrito de fondo
             page.get_by_role("button", name="Continuar").last.click(force=True)
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step()
             
             # P8: Aceptación
@@ -360,6 +380,7 @@ def crear_cuenta_ott(
                 page.wait_for_selector("button:has-text('Pagar ahora')", timeout=20000)
             except:
                 pass # Si cambia el texto, no queremos crashear
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step("Exito")
             
             log_callback(f"[Hilo {id_hilo}] 🎉 Flujo OTT Completado! Correo: {email_generado}")
