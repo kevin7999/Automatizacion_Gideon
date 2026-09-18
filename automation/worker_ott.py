@@ -127,7 +127,7 @@ def crear_cuenta_ott(
             # Seleccionar la primera variante (o la gratuita)
             # En la pantalla de variantes, hay botones "Ver canales" o el precio. Hacemos clic en el contenedor.
             # Simplemente le damos a Continuar, por defecto asume la base.
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
 
             # P3: Datos Básicos (Modal)
@@ -148,7 +148,7 @@ def crear_cuenta_ott(
             
             # Checkbox
             page.locator("input[type='checkbox']").check()
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
 
             # P4: OTP Maildrop
@@ -177,14 +177,14 @@ def crear_cuenta_ott(
             for i, digito in enumerate(codigo_otp):
                 otp_inputs.nth(i).fill(digito)
                 
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
 
             # P5: Carrito y Generación de contrato
             timer.start_step("P5: Carrito y Contrato")
             # Aparece el carrito "Resumen de tu plan"
             page.wait_for_selector("text='Debe completar el registro de datos para continuar con el pago'")
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             
             # Modal: Generación de contrato (Paso 1 de 4)
             page.wait_for_selector("text='Generación de contrato'")
@@ -195,7 +195,7 @@ def crear_cuenta_ott(
             page.get_by_label("Cédula de identidad").fill(cedula.replace("-","")) # Si es J1234567, quitamos guiones
             
             page.locator("input[type='checkbox']").check()
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
             
             # P6: Dirección
@@ -230,7 +230,7 @@ def crear_cuenta_ott(
             page.get_by_label("Edificio / Casa / Apartamento").fill("Torre Centro")
             page.get_by_label("N° de Casa o Apartamento").fill("PB")
             
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
             
             # P7: Datos Adicionales
@@ -247,7 +247,7 @@ def crear_cuenta_ott(
             page.locator("text='Proveedor de internet actual'").locator("..").locator("div").click()
             page.locator("text='Simplefibra'").click() # o el primero que salga
             
-            page.locator("button:has-text('Continuar')").first.click()
+            page.locator("button:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
             
             # P8: Aceptación
