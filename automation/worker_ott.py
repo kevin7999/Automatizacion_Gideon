@@ -224,7 +224,13 @@ def crear_cuenta_ott(
                 # Escribimos explícitamente en otp.0, otp.1, otp.2...
                 caja = page.locator(f"input[name='otp.{i}']")
                 caja.click()
-                caja.fill(digito)
+                caja.press_sequentially(digito, delay=50)
+                
+            # Disparar blur para asegurar validación final
+            page.locator(f"input[name='otp.5']").blur()
+                
+            # Dar chance a React de actualizar el botón
+            time.sleep(1)
                 
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
