@@ -254,45 +254,46 @@ def crear_cuenta_ott(
             timer.start_step("P6: Dirección de Facturación")
             page.wait_for_selector("text='Dirección de facturación'")
             
-            # Llenar dropdowns (abriendo el menú React simulado y haciendo clic en la opción)
+            # Llenar dropdowns usando inyección nativa de React para evitar bloqueos visuales
+            def react_select_by_text(p, select_name, text_match):
+                p.evaluate("""([name, text]) => {
+                    const select = document.querySelector(`select[name='${name}']`);
+                    if (!select) throw new Error("Select no encontrado: " + name);
+                    
+                    const options = Array.from(select.options);
+                    const target = options.find(o => o.text.toLowerCase().includes(text.toLowerCase()));
+                    if (!target) throw new Error("Opcion no encontrada para: " + text);
+                    
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                    nativeSetter.call(select, target.value);
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }""", [select_name, text_match])
             
             # Estado
-            page.locator("select[name='billingAddress.state']").click(force=True)
-            time.sleep(1)
-            page.get_by_text("DISTRITO CAPITAL").last.click(force=True)
+            react_select_by_text(page, 'billingAddress.state', 'distrito capital')
             time.sleep(2) # Esperar a que cargue Ciudad
             
             # Ciudad
-            page.locator("select[name='billingAddress.city']").click(force=True)
-            time.sleep(1)
-            page.get_by_text("CARACAS").last.click(force=True)
+            react_select_by_text(page, 'billingAddress.city', 'caracas')
             time.sleep(2) # Esperar a que cargue Municipio
             
             # Municipio
-            page.locator("select[name='billingAddress.municipality']").click(force=True)
-            time.sleep(1)
-            page.get_by_text("LIBERTADOR").last.click(force=True)
+            react_select_by_text(page, 'billingAddress.municipality', 'libertador')
             time.sleep(2) # Esperar a que cargue Zona
             
             # Zona
-            page.locator("select[name='billingAddress.zone']").click(force=True)
-            time.sleep(1)
-            page.get_by_text("CHACAITO").last.click(force=True)
+            react_select_by_text(page, 'billingAddress.zone', 'chacaito')
             time.sleep(2) # Esperar a que cargue Código postal
             
             # Código postal
             try:
-                page.locator("select[name='billingAddress.postalCode']").click(force=True)
-                time.sleep(1)
-                page.get_by_text("1050").last.click(force=True)
+                react_select_by_text(page, 'billingAddress.postalCode', '1050')
             except:
                 pass # A veces se autocompleta o es único
             time.sleep(1)
             
             # Tipo de calle
-            page.locator("select[name='billingAddress.streetType']").click(force=True)
-            time.sleep(1)
-            page.get_by_text("Avenida").last.click(force=True)
+            react_select_by_text(page, 'billingAddress.streetType', 'avenida')
             time.sleep(1)
             
             # Entradas de texto
