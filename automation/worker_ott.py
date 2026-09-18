@@ -228,7 +228,11 @@ def crear_cuenta_ott(
             # P5: Carrito y Generación de contrato
             timer.start_step("P5: Carrito y Contrato")
             
-            # El modal "Generación de contrato" aparece automáticamente después del OTP
+            # Click Continuar en Carrito
+            page.wait_for_selector("text='Debe completar el registro de datos para continuar con el pago'", timeout=20000)
+            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            
+            # El modal "Generación de contrato" aparece después del clic
             page.wait_for_selector("text='Generación de contrato'", timeout=20000)
             
             # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
