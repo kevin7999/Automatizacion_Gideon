@@ -14,35 +14,44 @@ def obtener_codigo_otp_maildrop(email_base, correlativo, p_context):
     page_maildrop = p_context.new_page()
     try:
         page_maildrop.goto(f"https://maildrop.cc/inbox/?mailbox={mailbox_name}", timeout=60000)
-        page_maildrop.wait_for_timeout(2000)
         
-        correo_encontrado = False
+        codigo = None
         for i in range(5):
-            item = page_maildrop.locator("text=Confirma tu correo de registro").first
-            if item.is_visible():
-                item.click()
-                correo_encontrado = True
-                break
-            page_maildrop.reload()
             page_maildrop.wait_for_timeout(3500)
             
-        if not correo_encontrado:
-            return None
+            # Hacer clic en el primer correo de la lista (cualquiera que haya llegado)
+            primer_correo = page_maildrop.locator("div[class*='truncate']").first
+            if primer_correo.is_visible():
+                try:
+                    primer_correo.click()
+                    page_maildrop.wait_for_timeout(2000)
+                except:
+                    pass
             
-        page_maildrop.wait_for_timeout(1500)
-        
-        # El código suele estar en un frame o directamente en el HTML
-        codigo = None
-        for frame in page_maildrop.frames:
-            content = frame.content()
-            # Busca un número de 6 dígitos que aparezca en el correo
-            match = re.search(r'\b(\d{6})\b', content)
+            # Buscar el código de 6 dígitos en todo el texto visible de la página o frames
+            texto_visible = ""
+            try:
+                texto_visible += page_maildrop.inner_text("body")
+            except:
+                pass
+                
+            for frame in page_maildrop.frames:
+                try:
+                    texto_visible += " " + frame.inner_text("body")
+                except:
+                    pass
+            
+            # Buscar 6 dígitos aislados (ej. 727633)
+            match = re.search(r'\b(\d{6})\b', texto_visible)
             if match:
                 codigo = match.group(1)
                 break
+            
+            page_maildrop.reload()
                 
         return codigo
-    except Exception:
+    except Exception as e:
+        print(f"Error en maildrop: {e}")
         return None
     finally:
         page_maildrop.close()
