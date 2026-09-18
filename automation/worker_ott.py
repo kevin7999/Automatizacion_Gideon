@@ -163,12 +163,23 @@ def crear_cuenta_ott(
             # Intento 3: Enviar Enter estando enfocados en el último campo
             page.keyboard.press("Enter")
             
+            # DEBUG SCREENSHOT 1
+            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_after_click.png"))
+            
             timer.stop_step()
 
             # P4: OTP Maildrop
             timer.start_step("P4: Validar OTP")
             # Esperar a que la pantalla cambie o aparezcan las cajitas del OTP (usamos "código" o "verificación" o esperamos que el botón cambie)
-            page.wait_for_selector("text=/código|verificación|reenviar/i, input[autocomplete='one-time-code']", timeout=20000)
+            try:
+                page.wait_for_selector("text=/código|verificación|reenviar/i, input[autocomplete='one-time-code'], input[type='tel']", timeout=20000)
+            except Exception as e:
+                # DEBUG SCREENSHOT 2 (If it times out)
+                page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_timeout_otp.png"))
+                raise e
+            
+            # DEBUG SCREENSHOT 3 (If it succeeded)
+            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_reached_otp.png"))
             
             # ir a maildrop
             log_callback(f"[Hilo {id_hilo}] ⏳ Esperando código OTP en {email_generado}...")
