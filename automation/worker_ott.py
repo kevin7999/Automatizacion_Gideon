@@ -254,36 +254,35 @@ def crear_cuenta_ott(
             timer.start_step("P6: Dirección de Facturación")
             page.wait_for_selector("text='Dirección de facturación'")
             
-            # Llenar dropdowns simulados
+            # Llenar dropdowns nativos (select)
+            import re
+            selects = page.locator("select:visible")
+            
             # Estado
-            page.get_by_text("Selecciona un estado").click(force=True)
-            page.get_by_text("MIRANDA", exact=True).click(force=True)
-            time.sleep(1)
+            selects.nth(0).select_option(label=re.compile(r"miranda", re.IGNORECASE))
+            time.sleep(2) # Esperar a que cargue Ciudad
             
             # Ciudad
-            page.get_by_text("Selecciona tu ciudad").click(force=True)
-            page.get_by_text("CARACAS", exact=True).click(force=True)
-            time.sleep(1)
+            selects.nth(1).select_option(label=re.compile(r"caracas", re.IGNORECASE))
+            time.sleep(2) # Esperar a que cargue Municipio
             
             # Municipio
-            page.get_by_text("Selecciona un municipio").click(force=True)
-            page.get_by_text("CHACAO", exact=True).click(force=True)
-            time.sleep(1)
+            selects.nth(2).select_option(label=re.compile(r"chacao", re.IGNORECASE))
+            time.sleep(2) # Esperar a que cargue Zona
             
             # Zona
-            page.get_by_text("Selecciona tu zona").click(force=True)
-            page.get_by_text("URB. EL ROSAL", exact=True).click(force=True)
-            time.sleep(1)
+            selects.nth(3).select_option(label=re.compile(r"rosal", re.IGNORECASE))
+            time.sleep(2) # Esperar a que cargue Código postal
             
             # Código postal
-            page.get_by_text("Selecciona tu código postal").click(force=True)
-            page.get_by_text("1060", exact=True).click(force=True)
+            try:
+                selects.nth(4).select_option(label=re.compile(r"1060", re.IGNORECASE))
+            except:
+                pass # A veces se autocompleta o es único
             time.sleep(1)
             
             # Tipo de calle
-            page.get_by_text("Selecciona un tipo de calle").click(force=True)
-            # Podría ser AVENIDA, Avenida, etc. Buscamos parcial ignorando mayúsculas
-            page.locator("text=/avenida/i").first.click(force=True)
+            selects.nth(5).select_option(label=re.compile(r"avenida", re.IGNORECASE))
             time.sleep(1)
             
             # Entradas de texto
