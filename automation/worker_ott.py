@@ -144,11 +144,11 @@ def crear_cuenta_ott(
             page.wait_for_selector("text='Registro Simpletv+'")
             
             # Nombres y apellidos
-            page.get_by_label("Nombre").click()
+            page.get_by_label("Nombre").click(force=True)
             page.get_by_label("Nombre").fill(nombre)
             page.get_by_label("Nombre").blur()
             
-            page.get_by_label("Apellido").click()
+            page.get_by_label("Apellido").click(force=True)
             page.get_by_label("Apellido").fill(apellido)
             page.get_by_label("Apellido").blur()
             
@@ -156,18 +156,18 @@ def crear_cuenta_ott(
             # El usuario indicó que no es necesario cambiar el prefijo, y tocarlo podría estar rompiendo el estado de React.
             # page.locator("select[name='phone.area']").select_option(prefijo_tel)
             
-            page.locator("input[name='phone.number']").click()
+            page.locator("input[name='phone.number']").click(force=True)
             page.locator("input[name='phone.number']").fill(numero_tel)
             page.locator("input[name='phone.number']").blur()
             
             # Llenar Correo
-            page.locator("input[name='email']").click()
+            page.locator("input[name='email']").click(force=True)
             page.locator("input[name='email']").fill(email_generado)
             page.locator("input[name='email']").blur()
             time.sleep(1)
             
             # Checkbox: Clicar el texto para asegurar que React dispare sus eventos sintéticos
-            page.locator("text='Declaro que toda la información proporcionada es real'").click()
+            page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
             
             # Usar múltiples estrategias para garantizar el clic
@@ -178,9 +178,9 @@ def crear_cuenta_ott(
             except:
                 pass
                 
-            # Intento 2: Clic normal
+            # Intento 2: Clic normal con force=True para evitar scrolls locos
             try:
-                btn_continuar.click()
+                btn_continuar.click(force=True)
             except:
                 pass
             
@@ -257,12 +257,12 @@ def crear_cuenta_ott(
             
             # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
             cedula_input = page.locator("input[placeholder*='cédula de identidad'], input[placeholder*='Cédula']").first
-            cedula_input.click()
+            cedula_input.click(force=True)
             cedula_input.fill(cedula.replace("-",""))
             cedula_input.blur()
             
-            # Checkbox: Usar JS click
-            page.locator("text='Declaro que toda la información proporcionada es real'").click()
+            # Checkbox: Usar click text con force=True
+            page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
             checkbox_p5 = page.locator("input[type='checkbox']").first
             try:
