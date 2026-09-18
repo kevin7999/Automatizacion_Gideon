@@ -142,12 +142,14 @@ def crear_cuenta_ott(
             page.locator("input[name='phone.number']").press_sequentially(numero_tel, delay=50)
             
             # Llenar Correo
+            page.locator("input[name='email']").click()
             page.locator("input[name='email']").press_sequentially(email_generado, delay=50)
             page.keyboard.press("Tab")
             time.sleep(1)
             
-            # Checkbox
-            page.locator("input[type='checkbox']").check()
+            # Checkbox: Clicar el texto para asegurar que React dispare sus eventos sintéticos
+            page.locator("text='Declaro que toda la información proporcionada es real'").click()
+            time.sleep(1)
             
             # Usar múltiples estrategias para garantizar el clic
             btn_continuar = page.locator("button[type='submit']:visible, button:visible:has-text('Continuar')").first
