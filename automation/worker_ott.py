@@ -146,15 +146,17 @@ def crear_cuenta_ott(
             page.get_by_label("Nombre").fill(nombre)
             page.get_by_label("Apellido").fill(apellido)
             
-            # El input de telefono es el único de type tel en este modal, pero para ser seguros:
-            tel_inputs = page.locator("input[type='tel']")
-            if tel_inputs.count() > 0:
-                tel_inputs.first.fill(numero_tel)
-            else:
-                # fallback
-                page.locator("input").nth(2).fill(numero_tel)
+            # Llenar Teléfono (por placeholder)
+            try:
+                page.get_by_placeholder("Introduce tu número de teléfono").fill(numero_tel)
+            except:
+                page.locator("input").nth(2).fill(numero_tel) # fallback
 
-            page.get_by_label("Correo electrónico").fill(email_generado)
+            # Llenar Correo (por placeholder)
+            try:
+                page.get_by_placeholder("Introduce tu correo electrónico").fill(email_generado)
+            except:
+                page.get_by_label("Correo electrónico").fill(email_generado)
             
             # Checkbox
             page.locator("input[type='checkbox']").check()
