@@ -59,8 +59,13 @@ class AppGideon(ctk.CTk):
             print(f"No se pudo cargar el logo principal: {e}")
 
         self.matriz_cuentas = []
+        self.matriz_cuentas_ott = []
+        
         self.fallidas_tanda_actual = []
+        self.fallidas_tanda_actual_ott = []
+        
         self.cancel_event = threading.Event()
+        self.cancel_event_ott = threading.Event()
 
         # Métricas KPIs
         self.kpi_total = 0
@@ -793,6 +798,7 @@ class AppGideon(ctk.CTk):
     # -------------------------------------------------------------
     # 📊 PESTAÑA 2: HISTORIAL Y REPORTES AVANZADO (SIMPLETV THEME)
     # -------------------------------------------------------------
+
     def build_tab_ott(self):
         self.frame_ott_body = ctk.CTkFrame(self.tab_ott, fg_color="transparent")
         self.frame_ott_body.pack(fill="both", expand=True)
@@ -801,104 +807,114 @@ class AppGideon(ctk.CTk):
         self.frame_ott_left = ctk.CTkScrollableFrame(self.frame_ott_body, width=370, corner_radius=12, fg_color=("#f1f3f5", "#141517"))
         self.frame_ott_left.pack(side="left", fill="both", expand=False, padx=(0, 5), pady=5)
 
-        # --- BLOQUE: FORMULARIO OTT ---
-        card_form = ctk.CTkFrame(
-            self.frame_ott_left,
-            corner_radius=10,
-            fg_color=("#ffffff", "#1a1b1e"),
-            border_width=1,
-            border_color=("#ced4da", "#2c2e33")
-        )
+        card_form = ctk.CTkFrame(self.frame_ott_left, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
         card_form.pack(fill="x", padx=4, pady=(0, 10))
 
         hdr_form = ctk.CTkFrame(card_form, fg_color="transparent")
         hdr_form.pack(fill="x", padx=12, pady=(10, 8))
-
-        ctk.CTkLabel(
-            hdr_form,
-            text="🎬 CONFIGURACIÓN PLAN OTT",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#d9480f", "#ff922b")
-        ).pack(side="left")
-
-        # Tipo de Persona
-        ctk.CTkLabel(card_form, text="Tipo de Cliente:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(2, 2))
-        self.cmb_persona_ott = ctk.CTkSegmentedButton(
-            card_form,
-            values=["Persona natural", "Persona jurídica"],
-            selected_color="#ff7800",
-            selected_hover_color="#e66a00",
-            unselected_color=("#e9ecef", "#25262b"),
-            unselected_hover_color=("#dee2e6", "#343a40"),
-            text_color=("#212529", "#ffffff"),
-            height=30
-        )
-        self.cmb_persona_ott.set("Persona natural")
-        self.cmb_persona_ott.pack(fill="x", padx=12, pady=(0, 8))
+        ctk.CTkLabel(hdr_form, text="⚙️ CONFIGURACIÓN PLAN OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#d9480f", "#ff922b")).pack(side="left")
 
         # Plan OTT
         ctk.CTkLabel(card_form, text="Seleccione el Plan OTT:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(2, 2))
         planes_ott_list = list(CATALOGO_OTT.keys()) if CATALOGO_OTT else ["Litesports", "Gold", "Platino", "Diamante"]
         
         self.cmb_plan_ott = ctk.CTkOptionMenu(
-            card_form,
-            values=planes_ott_list,
-            fg_color=("#e9ecef", "#25262b"),
-            button_color="#ff7800",
-            button_hover_color="#e66a00",
-            text_color=("#212529", "#ffffff"),
-            height=30
+            card_form, values=planes_ott_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
         )
         self.cmb_plan_ott.pack(fill="x", padx=12, pady=(0, 8))
 
         # Fila de Cantidad
         frame_cant = ctk.CTkFrame(card_form, fg_color="transparent")
         frame_cant.pack(fill="x", padx=12, pady=(10, 10))
-
         ctk.CTkLabel(frame_cant, text="Cantidad de cuentas:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
-        self.spn_cantidad_ott = ctk.CTkEntry(
-            frame_cant,
-            placeholder_text="1",
-            width=65,
-            height=28,
-            fg_color=("#ffffff", "#25262b"),
-            border_color=("#ced4da", "#373a40"),
-            text_color=("#212529", "#f8f9fa")
-        )
+        self.spn_cantidad_ott = ctk.CTkEntry(frame_cant, placeholder_text="1", width=65, height=28, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"), text_color=("#212529", "#f8f9fa"))
         self.spn_cantidad_ott.insert(0, "1")
         self.spn_cantidad_ott.pack(side="right")
 
-        # Botones principales de adición
+        # Botón Agregar
         ctk.CTkButton(
-            card_form,
-            text="➕ Agregar a la Cola OTT",
-            command=self.agregar_lote_ott,
-            fg_color="#ff7800",
-            hover_color="#e66a00",
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            height=34
+            card_form, text="➕ Agregar a la Cola OTT", command=self.agregar_lote_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=34
         ).pack(fill="x", padx=12, pady=(0, 12))
 
-        # --- PANEL DERECHO: INFO ---
+        # --- PANEL DERECHO: COLA Y EJECUCIÓN OTT ---
         self.frame_ott_right = ctk.CTkFrame(self.frame_ott_body, corner_radius=12, fg_color="transparent")
         self.frame_ott_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
-        card_cola = ctk.CTkFrame(
-            self.frame_ott_right,
-            corner_radius=10,
-            fg_color=("#ffffff", "#1a1b1e"),
-            border_width=1,
-            border_color=("#ced4da", "#2c2e33")
-        )
-        card_cola.pack(fill="both", expand=True, padx=0, pady=0)
+        card_cola = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
+        card_cola.pack(fill="x", padx=0, pady=(0, 8))
+
+        frame_cola_hdr = ctk.CTkFrame(card_cola, fg_color="transparent")
+        frame_cola_hdr.pack(fill="x", padx=12, pady=(8, 4))
+        ctk.CTkLabel(frame_cola_hdr, text="📋 Cola de Cuentas OTT", font=ctk.CTkFont(size=13, weight="bold"), text_color=("#d9480f", "#ff7800")).pack(side="left")
+        self.lbl_cola_badge_ott = ctk.CTkLabel(frame_cola_hdr, text="0 en espera", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#495057", "#adb5bd"))
+        self.lbl_cola_badge_ott.pack(side="right")
+
+        self.frame_cola_scroll_ott = ctk.CTkScrollableFrame(card_cola, height=165, fg_color=("#f1f3f5", "#141517"), corner_radius=8)
+        self.frame_cola_scroll_ott.pack(fill="x", padx=10, pady=(0, 8))
+
+        # Acciones
+        card_exec = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
+        card_exec.pack(fill="x", padx=0, pady=(0, 8))
+
+        frame_exec_inner = ctk.CTkFrame(card_exec, fg_color="transparent")
+        frame_exec_inner.pack(fill="x", padx=12, pady=12)
         
-        ctk.CTkLabel(
-            card_cola, 
-            text="Al agregar a la cola, los trabajos de OTT se enviarán\na la Cola Principal en el 'Centro de Control'.", 
-            font=ctk.CTkFont(size=14, slant="italic"),
-            text_color=("#868e96", "#adb5bd")
-        ).pack(expand=True)
+        self.btn_iniciar_ott = ctk.CTkButton(
+            frame_exec_inner, text="▶️ INICIAR PROCESAMIENTO OTT", command=self.iniciar_proceso_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=34
+        )
+        self.btn_iniciar_ott.pack(side="right", fill="x", expand=True, padx=(10, 0))
+        
+        self.btn_cancelar_ott = ctk.CTkButton(
+            frame_exec_inner, text="⏹️ Cancelar", command=self.cancelar_proceso_ott, fg_color=("#f8d7da", "#401c1c"), hover_color=("#f5c2c7", "#521616"), text_color=("#721c24", "#e599f7"), font=ctk.CTkFont(size=12, weight="bold"), height=34, width=100, state="disabled"
+        )
+        self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
+        
+        ctk.CTkButton(
+            frame_exec_inner, text="🗑️ Limpiar Cola", command=self.limpiar_cola_ott, fg_color=("#e9ecef", "#25262b"), hover_color=("#dee2e6", "#2c2e33"), text_color=("#495057", "#ced4da"), font=ctk.CTkFont(size=12, weight="bold"), height=34, width=110
+        ).pack(side="left")
+
+        # Refrescar vista por defecto
+        self.refrescar_vista_cola_ott()
+
+    def refrescar_vista_cola_ott(self):
+        for child in self.frame_cola_scroll_ott.winfo_children():
+            child.destroy()
+
+        total_cuentas = len(self.matriz_cuentas_ott)
+        if hasattr(self, 'lbl_cola_badge_ott'):
+            self.lbl_cola_badge_ott.configure(text=f"{total_cuentas} en espera")
+
+        if not self.matriz_cuentas_ott:
+            lbl_vacio = ctk.CTkLabel(
+                self.frame_cola_scroll_ott, text="La cola OTT está vacía.", text_color=("#6c757d", "#909296"), font=ctk.CTkFont(size=12)
+            )
+            lbl_vacio.pack(pady=25)
+        else:
+            for i, c in enumerate(self.matriz_cuentas_ott, start=1):
+                row_frame = ctk.CTkFrame(self.frame_cola_scroll_ott, fg_color=("#ffffff", "#1e1f23"), corner_radius=8, border_width=1, border_color=("#dee2e6", "#2c2e33"), height=42)
+                row_frame.pack(fill="x", pady=3, padx=2)
+                row_frame.pack_propagate(False)
+                
+                ctk.CTkLabel(row_frame, text=f"{i}", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#ffffff"), fg_color="#ff7800", width=22, corner_radius=4).pack(side="left", padx=(6, 8), pady=10)
+                ctk.CTkLabel(row_frame, text="NATURAL", font=ctk.CTkFont(size=10, weight="bold"), text_color="#1864ab", width=55).pack(side="left")
+                ctk.CTkLabel(row_frame, text=f"{c['plan_seleccionado']}", font=ctk.CTkFont(size=11), text_color=("#495057", "#ced4da")).pack(side="left", padx=(10, 0), expand=True, anchor="w")
+                
+                def make_remover(index):
+                    return lambda: self.remover_de_cola_ott(index)
+                
+                btn_del = ctk.CTkButton(row_frame, text="✖", width=26, height=26, fg_color="transparent", hover_color=("#ffe3e3", "#401c1c"), text_color=("#fa5252", "#ff6b6b"), command=make_remover(i-1))
+                btn_del.pack(side="right", padx=6)
+
+    def remover_de_cola_ott(self, indice):
+        if 0 <= indice < len(self.matriz_cuentas_ott):
+            del self.matriz_cuentas_ott[indice]
+            self.refrescar_vista_cola_ott()
+
+    def limpiar_cola_ott(self):
+        self.matriz_cuentas_ott.clear()
+        self.fallidas_tanda_actual_ott.clear()
+        self.refrescar_vista_cola_ott()
+        self.log_salida("🗑️ Cola OTT limpiada.")
 
     def agregar_lote_ott(self):
         plan_ott = self.cmb_plan_ott.get()
@@ -906,8 +922,6 @@ class AppGideon(ctk.CTk):
             messagebox.showwarning("Plan Inválido", "Por favor selecciona un plan OTT válido.")
             return
 
-        tipo_persona = self.cmb_persona_ott.get()
-        
         try:
             cant = int(self.spn_cantidad_ott.get())
         except ValueError:
@@ -915,24 +929,78 @@ class AppGideon(ctk.CTk):
 
         for _ in range(cant):
             item = {
-                "tipo_persona": tipo_persona, 
-                "ubicacion": "Miranda",  # Fixed as requested
+                "tipo_persona": "Persona natural", 
+                "ubicacion": "Miranda",
                 "plan_seleccionado": plan_ott,
                 "aplicar_promocion": False,
-                "is_ott": True
+                "is_ott": True,
+                "tipo_doc": "Venezuelan"
             }
-            if tipo_persona == "Persona natural":
-                item["tipo_doc"] = "Venezuelan"
-            else:
-                item["tipo_rif"] = "Legal"
-                
             item = self.preparar_item_cuenta(item)
-            self.matriz_cuentas.append(item)
+            self.matriz_cuentas_ott.append(item)
 
-        self.refrescar_vista_cola()
-        self.log_salida(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}) a la Cola Principal.")
+        self.refrescar_vista_cola_ott()
+        self.log_salida(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}) a la Cola OTT.")
+
+    def iniciar_proceso_ott(self):
+        if not self.matriz_cuentas_ott:
+            messagebox.showinfo("Cola vacía", "Agrega al menos una cuenta a la cola OTT antes de iniciar.")
+            return
+            
+        self.btn_iniciar_ott.configure(state="disabled")
+        self.btn_cancelar_ott.configure(state="normal")
+        self.cancel_event_ott.clear()
+        self.fallidas_tanda_actual_ott.clear()
+        
+        self.log_salida(f"🚀 Iniciando procesamiento masivo de {len(self.matriz_cuentas_ott)} cuentas OTT...")
+        threading.Thread(target=self.ejecutar_hilos_ott, daemon=True).start()
+
+    def cancelar_proceso_ott(self):
+        if not self.cancel_event_ott.is_set():
+            self.cancel_event_ott.set()
+            self.btn_cancelar_ott.configure(state="disabled")
+            self.log_salida("🛑 [SISTEMA] Solicitud de CANCELACIÓN OTT recibida...")
+
+    def ejecutar_hilos_ott(self):
+        num_hilos = self.config_sys.get("hilos_simultaneos", 2)
+        tanda_cuentas = list(self.matriz_cuentas_ott)
+        with ThreadPoolExecutor(max_workers=num_hilos) as executor:
+            for i, config in enumerate(tanda_cuentas, start=1):
+                if self.cancel_event_ott.is_set():
+                    self.log_salida(f"⚠️ Ejecución OTT cancelada.")
+                    break
+                
+                self.update_kpis_ui(ejecucion=1)
+                
+                def _crear_cb(c_item):
+                    def _cb(exito=0, fallo=0):
+                        self.update_kpis_ui(ejecucion=-1, exito=exito, fallo=fallo)
+                        if fallo > 0:
+                            self.fallidas_tanda_actual_ott.append(dict(c_item))
+                    return _cb
+
+                executor.submit(
+                    crear_cuenta_ott,
+                    i, config, self.config_sys, self.log_salida,
+                    _crear_cb(config),
+                    self.cancel_event_ott,
+                    self.update_thread_status
+                )
+                import time
+                time.sleep(6)
+        
+        def _finalizar():
+            if self.cancel_event_ott.is_set():
+                self.log_salida("🛑 Procesamiento OTT cancelado por el usuario.")
+            else:
+                self.log_salida("🎉 Proceso OTT finalizado por completo.")
+            self.btn_iniciar_ott.configure(state="normal")
+            self.btn_cancelar_ott.configure(state="disabled")
+            
+        self.after(500, _finalizar)
 
     def build_tab_reportes(self):
+
         # 1. HEADER CON TARJETAS KPI DE HISTORIAL
         self.frame_kpis_historial = ctk.CTkFrame(self.tab_reportes, fg_color="transparent")
         self.frame_kpis_historial.pack(fill="x", padx=10, pady=(0, 8))

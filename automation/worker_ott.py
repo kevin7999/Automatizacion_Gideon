@@ -66,18 +66,16 @@ def crear_cuenta_ott(
     timer.start_step("P0: Preparación")
     try:
         nuevo_corr = obtener_siguiente_correlativo()
-        prefijo_ced = "V" if tipo_persona == "Persona natural" else "J"
-        cedula = str(random.randint(10000000, 30000000)) if tipo_persona == "Persona natural" else f"{random.randint(1000000, 99999999)}-{random.randint(0,9)}"
+        telefono_completo = generar_telefono_ve()
+        prefijo_tel = telefono_completo[:4]
+        numero_tel = telefono_completo[4:]
+        
+        # OTT siempre es Persona Natural
+        prefijo_ced = "V"
+        cedula = str(random.randint(10000000, 30000000))
         nombre = f"Gideon{nuevo_corr}"
         apellido = "TestOTT"
-        
-        prefijo_tel, numero_tel = generar_telefono_ve()
-        
-        # Ojo: si es J, debe ser J12345678, y RIF debe ser igual.
-        if tipo_persona == "Persona jurídica":
-            rif_completo = f"J-{cedula}"
-        else:
-            rif_completo = f"V-{cedula}"
+        rif_completo = f"V-{cedula}"
             
         email_base = sys_config.get("email_test_generico", "testgatb")
         if "@" in email_base:
@@ -140,23 +138,21 @@ def crear_cuenta_ott(
             page.fill("input[name='lastName']", apellido)
             
             # Telefono
-            # Si hay un dropdown para prefijo, abrimos y seleccionamos
-            prefijo_locator = page.locator("div[class*='dropdown']").first # Buscar mejor selector
-            if page.locator("text='0412'").count() > 0:
-                pass # Por defecto a veces viene
-            # Llenar inputs por name si es posible, o placeholder
-            # Fallback a locator genérico:
-            inputs = page.locator("input[type='text']")
-            # En base a la captura 3, el tercero es telefono (sin contar dropdown), o busquemos por label
+            # Seleccionar prefijo en el dropdown
+            page.locator("text='0412'").locator("..").click() # Abre el dropdown (el div que contiene el texto actual)
+            page.locator(f"text='{prefijo_tel}'").click()     # Selecciona el generado
+            
+            # Llenar inputs
             page.get_by_label("Nombre").fill(nombre)
             page.get_by_label("Apellido").fill(apellido)
             
-            tel_input = page.locator("input[type='tel']")
-            if tel_input.count() > 0:
-                tel_input.first.fill(numero_tel)
+            # El input de telefono es el único de type tel en este modal, pero para ser seguros:
+            tel_inputs = page.locator("input[type='tel']")
+            if tel_inputs.count() > 0:
+                tel_inputs.first.fill(numero_tel)
             else:
-                # buscar input proximo a "Número de teléfono"
-                page.locator("input").nth(2).fill(numero_tel) # fallback
+                # fallback
+                page.locator("input").nth(2).fill(numero_tel)
 
             page.get_by_label("Correo electrónico").fill(email_generado)
             
