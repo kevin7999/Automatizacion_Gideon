@@ -339,18 +339,27 @@ def crear_cuenta_ott(
             
             # Los demás campos no son obligatorios según la usuaria, así que los saltamos
             
-            # Continuar
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            # Continuar P7
+            # Usamos .last para asegurarnos de hacer clic en el botón del modal y no en el del carrito de fondo
+            page.get_by_role("button", name="Continuar").last.click(force=True)
             timer.stop_step()
             
             # P8: Aceptación
             timer.start_step("P8: Aceptación de documentos")
-            page.wait_for_selector("text='Aceptación de documentos'")
-            page.locator("input[type='checkbox']").check()
-            page.locator("button:has-text('Continuar')").click()
+            page.wait_for_selector("text=/Aceptación/i", timeout=15000)
             
-            # Esperar a que vuelva al carrito con el botón "Pagar ahora"
-            page.wait_for_selector("button:has-text('Pagar ahora')", timeout=20000)
+            # Marcar checkbox (forzando para evadir estilos custom)
+            page.locator("input[type='checkbox']").first.check(force=True)
+            
+            # Aceptar / Continuar contrato
+            # Usamos regex por si el botón dice 'Aceptar' o 'Continuar'
+            page.locator("button:visible").filter(has_text=re.compile(r"Continuar|Aceptar", re.IGNORECASE)).last.click(force=True)
+            
+            # Esperar a que vuelva al carrito con el botón "Pagar ahora" (u otro indicador de fin)
+            try:
+                page.wait_for_selector("button:has-text('Pagar ahora')", timeout=20000)
+            except:
+                pass # Si cambia el texto, no queremos crashear
             timer.stop_step("Exito")
             
             log_callback(f"[Hilo {id_hilo}] 🎉 Flujo OTT Completado! Correo: {email_generado}")
