@@ -256,33 +256,32 @@ def crear_cuenta_ott(
             
             # Llenar dropdowns nativos (select)
             import re
-            selects = page.locator("select:visible")
             
             # Estado
-            selects.nth(0).select_option(label=re.compile(r"miranda", re.IGNORECASE))
+            page.locator("select[name='billingAddress.state']").select_option(label=re.compile(r"miranda", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Ciudad
             
             # Ciudad
-            selects.nth(1).select_option(label=re.compile(r"caracas", re.IGNORECASE))
+            page.locator("select[name='billingAddress.city']").select_option(label=re.compile(r"caracas", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Municipio
             
             # Municipio
-            selects.nth(2).select_option(label=re.compile(r"chacao", re.IGNORECASE))
+            page.locator("select[name='billingAddress.municipality']").select_option(label=re.compile(r"chacao", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Zona
             
             # Zona
-            selects.nth(3).select_option(label=re.compile(r"rosal", re.IGNORECASE))
+            page.locator("select[name='billingAddress.zone']").select_option(label=re.compile(r"rosal", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Código postal
             
             # Código postal
             try:
-                selects.nth(4).select_option(label=re.compile(r"1060", re.IGNORECASE))
+                page.locator("select[name='billingAddress.postalCode']").select_option(label=re.compile(r"1060", re.IGNORECASE), force=True)
             except:
                 pass # A veces se autocompleta o es único
             time.sleep(1)
             
             # Tipo de calle
-            selects.nth(5).select_option(label=re.compile(r"avenida", re.IGNORECASE))
+            page.locator("select[name='billingAddress.streetType']").select_option(label=re.compile(r"avenida", re.IGNORECASE), force=True)
             time.sleep(1)
             
             # Entradas de texto
