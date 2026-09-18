@@ -308,17 +308,38 @@ def crear_cuenta_ott(
             # P7: Datos Adicionales
             timer.start_step("P7: Datos Adicionales")
             page.wait_for_selector("text='Datos adicionales'")
-            page.get_by_label("Fecha de nacimiento").fill("01/01/1990")
-            page.get_by_label("RIF").fill(cedula)
             
-            # Pago movil
-            tel_inputs = page.locator("input[type='tel']")
-            tel_inputs.last.fill(numero_tel) # suele ser el pago movil
+            # Sexo (buscar el select cercano al texto 'Sexo' e inyectar el valor)
+            page.evaluate("""() => {
+                const selects = Array.from(document.querySelectorAll('select'));
+                const select = selects.find(s => {
+                    const label = s.closest('label') || (s.parentElement && s.parentElement.closest('label'));
+                    return label && label.textContent.toLowerCase().includes('sexo');
+                }) || selects.find(s => s.name && s.name.toLowerCase().includes('gender'));
+                
+                if(select) {
+                    const options = Array.from(select.options);
+                    const target = options.find(o => o.text.toLowerCase().includes('masculino'));
+                    if(target) {
+                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                        nativeSetter.call(select, target.value);
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            }""")
+            time.sleep(1)
             
-            # Proveedor
-            page.locator("text='Proveedor de internet actual'").locator("..").locator("div").click()
-            page.locator("text='Simplefibra'").click() # o el primero que salga
+            # Fecha de nacimiento
+            # Como el input tiene type="date", Playwright puede requerir el formato YYYY-MM-DD
+            try:
+                page.locator("input[name='birthDate']").fill("1990-01-01", force=True)
+            except:
+                # Fallback por si es text normal con máscara
+                page.locator("input[name='birthDate']").fill("01/01/1990", force=True)
             
+            # Los demás campos no son obligatorios según la usuaria, así que los saltamos
+            
+            # Continuar
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
             
