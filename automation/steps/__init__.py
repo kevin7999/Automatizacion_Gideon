@@ -1,0 +1,7 @@
+from .paso0_login import ejecutar_paso_0_login
+from .paso1_datos import ejecutar_paso_1_datos_basicos
+from .paso2_direccion import ejecutar_paso_2_direccion
+from .paso3_adicional import ejecutar_paso_3_adicional
+from .paso4_paquetes import ejecutar_paso_4_paquetes
+from .paso4_addons import ejecutar_paso_4_2_addons
+from .paso5_otp import ejecutar_paso_5_otp_y_confirmacion
