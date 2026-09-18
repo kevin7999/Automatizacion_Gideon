@@ -258,7 +258,7 @@ def crear_cuenta_ott(
             import re
             
             # Estado
-            page.locator("select[name='billingAddress.state']").select_option(label=re.compile(r"miranda", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.state']").select_option(label=re.compile(r"distrito capital", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Ciudad
             
             # Ciudad
@@ -266,16 +266,16 @@ def crear_cuenta_ott(
             time.sleep(2) # Esperar a que cargue Municipio
             
             # Municipio
-            page.locator("select[name='billingAddress.municipality']").select_option(label=re.compile(r"chacao", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.municipality']").select_option(label=re.compile(r"libertador", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Zona
             
             # Zona
-            page.locator("select[name='billingAddress.zone']").select_option(label=re.compile(r"rosal", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.zone']").select_option(label=re.compile(r"chacaito", re.IGNORECASE), force=True)
             time.sleep(2) # Esperar a que cargue Código postal
             
             # Código postal
             try:
-                page.locator("select[name='billingAddress.postalCode']").select_option(label=re.compile(r"1060", re.IGNORECASE), force=True)
+                page.locator("select[name='billingAddress.postalCode']").select_option(label=re.compile(r"1050", re.IGNORECASE), force=True)
             except:
                 pass # A veces se autocompleta o es único
             time.sleep(1)
@@ -285,9 +285,9 @@ def crear_cuenta_ott(
             time.sleep(1)
             
             # Entradas de texto
-            page.locator("input[placeholder*='avenida o calle']").fill("Principal", force=True)
-            page.locator("input[placeholder*='nombre del edificio']").fill("Torre Centro", force=True)
-            page.locator("input[placeholder*='número de casa']").fill("PB", force=True)
+            page.locator("input[placeholder*='avenida o calle']").fill("Av Venezuela", force=True)
+            page.locator("input[placeholder*='nombre del edificio']").fill("torre directv", force=True)
+            page.locator("input[placeholder*='número de casa']").fill("533", force=True)
             
             btn_continuar_p6 = page.get_by_role("button", name="Continuar").last
             btn_continuar_p6.click(force=True)
