@@ -134,40 +134,15 @@ def crear_cuenta_ott(
             timer.start_step("P3: Registro Simpletv+")
             page.wait_for_selector("text='Registro Simpletv+'")
             
-            page.fill("input[name='firstName']", nombre)
-            page.fill("input[name='lastName']", apellido)
-            
-            # Telefono
-            # Seleccionar prefijo en el dropdown
-            page.locator("text='0412'").locator("..").click() # Abre el dropdown (el div que contiene el texto actual)
-            page.locator(f"text='{prefijo_tel}'").click()     # Selecciona el generado
-            
-            # Llenar inputs
             page.get_by_label("Nombre").fill(nombre)
             page.get_by_label("Apellido").fill(apellido)
             
-            # Estrategia a prueba de balas para encontrar los inputs de teléfono y correo
-            # 1. Obtenemos todos los inputs de texto/tel/email visibles (excluimos checkboxes y radio)
-            inputs = page.locator("input:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']):visible").all()
+            # Llenar Teléfono (con selectores exactos del DOM)
+            page.locator("select[name='phone.area']").select_option(prefijo_tel)
+            page.locator("input[name='phone.number']").fill(numero_tel)
             
-            # 2. Buscamos cuáles están vacíos (Nombre y Apellido ya tienen texto)
-            empty_inputs = []
-            for inp in inputs:
-                if not inp.input_value():
-                    empty_inputs.append(inp)
-            
-            # 3. El primero vacío es el teléfono, el segundo es el correo
-            if len(empty_inputs) >= 2:
-                empty_inputs[0].fill(numero_tel)
-                empty_inputs[1].fill(email_generado)
-            elif len(empty_inputs) == 1:
-                # Fallback extremo (por si acaso)
-                empty_inputs[0].fill(numero_tel)
-                page.locator("input[type='email']:visible, input[name*='mail' i]:visible, input[placeholder*='correo' i]:visible").first.fill(email_generado)
-            else:
-                # Si falló la estrategia anterior, usamos selectores combinados robustos
-                page.locator("input[type='tel']:visible, input[name*='phone' i]:visible, input[placeholder*='número' i]:visible, input[placeholder*='numero' i]:visible").first.fill(numero_tel)
-                page.locator("input[type='email']:visible, input[name*='mail' i]:visible, input[placeholder*='correo' i]:visible").first.fill(email_generado)
+            # Llenar Correo (con selector exacto del DOM)
+            page.locator("input[name='email']").fill(email_generado)
             
             # Checkbox
             page.locator("input[type='checkbox']").check()
