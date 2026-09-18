@@ -146,17 +146,28 @@ def crear_cuenta_ott(
             page.get_by_label("Nombre").fill(nombre)
             page.get_by_label("Apellido").fill(apellido)
             
-            # Llenar Teléfono (por placeholder)
-            try:
-                page.get_by_placeholder("Introduce tu número de teléfono").fill(numero_tel)
-            except:
-                page.locator("input").nth(2).fill(numero_tel) # fallback
-
-            # Llenar Correo (por placeholder)
-            try:
-                page.get_by_placeholder("Introduce tu correo electrónico").fill(email_generado)
-            except:
-                page.get_by_label("Correo electrónico").fill(email_generado)
+            # Estrategia a prueba de balas para encontrar los inputs de teléfono y correo
+            # 1. Obtenemos todos los inputs de texto/tel/email visibles (excluimos checkboxes y radio)
+            inputs = page.locator("input:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']):visible").all()
+            
+            # 2. Buscamos cuáles están vacíos (Nombre y Apellido ya tienen texto)
+            empty_inputs = []
+            for inp in inputs:
+                if not inp.input_value():
+                    empty_inputs.append(inp)
+            
+            # 3. El primero vacío es el teléfono, el segundo es el correo
+            if len(empty_inputs) >= 2:
+                empty_inputs[0].fill(numero_tel)
+                empty_inputs[1].fill(email_generado)
+            elif len(empty_inputs) == 1:
+                # Fallback extremo (por si acaso)
+                empty_inputs[0].fill(numero_tel)
+                page.locator("input[type='email']:visible, input[name*='mail' i]:visible, input[placeholder*='correo' i]:visible").first.fill(email_generado)
+            else:
+                # Si falló la estrategia anterior, usamos selectores combinados robustos
+                page.locator("input[type='tel']:visible, input[name*='phone' i]:visible, input[placeholder*='número' i]:visible, input[placeholder*='numero' i]:visible").first.fill(numero_tel)
+                page.locator("input[type='email']:visible, input[name*='mail' i]:visible, input[placeholder*='correo' i]:visible").first.fill(email_generado)
             
             # Checkbox
             page.locator("input[type='checkbox']").check()
