@@ -254,34 +254,45 @@ def crear_cuenta_ott(
             timer.start_step("P6: Dirección de Facturación")
             page.wait_for_selector("text='Dirección de facturación'")
             
-            # Llenar dropdowns nativos (select)
-            import re
+            # Llenar dropdowns (abriendo el menú React simulado y haciendo clic en la opción)
             
             # Estado
-            page.locator("select[name='billingAddress.state']").select_option(label=re.compile(r"distrito capital", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.state']").click(force=True)
+            time.sleep(0.5)
+            page.locator("text=/distrito capital/i").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Ciudad
             
             # Ciudad
-            page.locator("select[name='billingAddress.city']").select_option(label=re.compile(r"caracas", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.city']").click(force=True)
+            time.sleep(0.5)
+            page.locator("text=/caracas/i").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Municipio
             
             # Municipio
-            page.locator("select[name='billingAddress.municipality']").select_option(label=re.compile(r"libertador", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.municipality']").click(force=True)
+            time.sleep(0.5)
+            page.locator("text=/libertador/i").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Zona
             
             # Zona
-            page.locator("select[name='billingAddress.zone']").select_option(label=re.compile(r"chacaito", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.zone']").click(force=True)
+            time.sleep(0.5)
+            page.locator("text=/chacaito/i").last.click(force=True)
             time.sleep(2) # Esperar a que cargue Código postal
             
             # Código postal
             try:
-                page.locator("select[name='billingAddress.postalCode']").select_option(label=re.compile(r"1050", re.IGNORECASE), force=True)
+                page.locator("select[name='billingAddress.postalCode']").click(force=True)
+                time.sleep(0.5)
+                page.locator("text=/1050/i").last.click(force=True)
             except:
                 pass # A veces se autocompleta o es único
             time.sleep(1)
             
             # Tipo de calle
-            page.locator("select[name='billingAddress.streetType']").select_option(label=re.compile(r"avenida", re.IGNORECASE), force=True)
+            page.locator("select[name='billingAddress.streetType']").click(force=True)
+            time.sleep(0.5)
+            page.locator("text=/avenida/i").last.click(force=True)
             time.sleep(1)
             
             # Entradas de texto
