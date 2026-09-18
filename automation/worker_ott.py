@@ -166,16 +166,25 @@ def crear_cuenta_ott(
             page.locator("input[name='email']").blur()
             time.sleep(1)
             
-            # Checkbox: Clicar nativamente para activar React
-            checkbox = page.locator("input[type='checkbox']")
-            checkbox.evaluate("node => node.click()")
+            # Checkbox: Clicar el texto para asegurar que React dispare sus eventos sintéticos
+            page.locator("text='Declaro que toda la información proporcionada es real'").click()
             time.sleep(1)
             
-            # Usar Playwright click normal primero (es el mejor para React)
+            # Usar múltiples estrategias para garantizar el clic
             btn_continuar = page.locator("button[type='submit']:visible, button:visible:has-text('Continuar')").first
-            btn_continuar.click(force=True)
+            try:
+                # Intento 1: JS puro (Infalible contra superposiciones CSS)
+                btn_continuar.evaluate("node => node.click()")
+            except:
+                pass
+                
+            # Intento 2: Clic normal
+            try:
+                btn_continuar.click()
+            except:
+                pass
             
-            # Intento 2: Enviar Enter estando enfocados en el último campo
+            # Intento 3: Enviar Enter estando enfocados en el último campo
             page.keyboard.press("Enter")
             
             # DEBUG SCREENSHOT 1
