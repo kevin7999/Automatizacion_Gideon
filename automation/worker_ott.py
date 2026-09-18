@@ -73,8 +73,8 @@ def crear_cuenta_ott(
         # OTT siempre es Persona Natural
         prefijo_ced = "V"
         cedula = str(random.randint(10000000, 30000000))
-        nombre = f"Gideon{nuevo_corr}"
-        apellido = "TestOTT"
+        nombre = "Gideon"
+        apellido = "Test"
         rif_completo = f"V-{cedula}"
             
         email_base = sys_config.get("email_test_generico", "testgatb")
@@ -137,12 +137,12 @@ def crear_cuenta_ott(
             page.get_by_label("Nombre").fill(nombre)
             page.get_by_label("Apellido").fill(apellido)
             
-            # Llenar Teléfono (con selectores exactos del DOM)
+            # Llenar Teléfono (usando press_sequentially para disparar eventos)
             page.locator("select[name='phone.area']").select_option(prefijo_tel)
-            page.locator("input[name='phone.number']").fill(numero_tel)
+            page.locator("input[name='phone.number']").press_sequentially(numero_tel, delay=50)
             
-            # Llenar Correo (con selector exacto del DOM)
-            page.locator("input[name='email']").fill(email_generado)
+            # Llenar Correo
+            page.locator("input[name='email']").press_sequentially(email_generado, delay=50)
             page.keyboard.press("Tab")
             time.sleep(1)
             
