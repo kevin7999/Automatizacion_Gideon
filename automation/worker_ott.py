@@ -1,13 +1,52 @@
 import os
 import time
 import random
+import re
 from playwright.sync_api import sync_playwright
 
 from core.correlativos import obtener_siguiente_correlativo, registrar_cuenta_creada, formatear_error_amigable
 from core.generadores import generar_telefono_ve
-from automation.crm_helpers import obtener_codigo_otp_maildrop
 
 from automation.worker import StepTimer
+
+def obtener_codigo_otp_maildrop(email_base, correlativo, p_context):
+    mailbox_name = f"{email_base}{correlativo}"
+    page_maildrop = p_context.new_page()
+    try:
+        page_maildrop.goto(f"https://maildrop.cc/inbox/?mailbox={mailbox_name}", timeout=60000)
+        page_maildrop.wait_for_timeout(2000)
+        
+        correo_encontrado = False
+        for i in range(5):
+            item = page_maildrop.locator("text=Confirma tu correo de registro").first
+            if item.is_visible():
+                item.click()
+                correo_encontrado = True
+                break
+            page_maildrop.reload()
+            page_maildrop.wait_for_timeout(3500)
+            
+        if not correo_encontrado:
+            return None
+            
+        page_maildrop.wait_for_timeout(1500)
+        
+        # El código suele estar en un frame o directamente en el HTML
+        codigo = None
+        for frame in page_maildrop.frames:
+            content = frame.content()
+            # Busca un número de 6 dígitos que aparezca en el correo
+            match = re.search(r'\b(\d{6})\b', content)
+            if match:
+                codigo = match.group(1)
+                break
+                
+        return codigo
+    except Exception:
+        return None
+    finally:
+        page_maildrop.close()
+
 
 def crear_cuenta_ott(
     id_hilo, 
@@ -136,7 +175,7 @@ def crear_cuenta_ott(
             time.sleep(10) # Espera inicial
             codigo_otp = None
             for intento in range(5):
-                codigo_otp = obtener_codigo_otp_maildrop(email_base, nuevo_corr)
+                codigo_otp = obtener_codigo_otp_maildrop(email_base, nuevo_corr, context)
                 if codigo_otp:
                     break
                 log_callback(f"[Hilo {id_hilo}] OTP no encontrado, reintentando ({intento+1}/5)...")
