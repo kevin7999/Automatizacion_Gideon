@@ -220,9 +220,11 @@ def crear_cuenta_ott(
             log_callback(f"[Hilo {id_hilo}] ✅ Código OTP: {codigo_otp}")
             
             # Llenar casillas OTP
-            otp_inputs = page.locator("input[type='tel']")
             for i, digito in enumerate(codigo_otp):
-                otp_inputs.nth(i).fill(digito)
+                # Escribimos explícitamente en otp.0, otp.1, otp.2...
+                caja = page.locator(f"input[name='otp.{i}']")
+                caja.click()
+                caja.fill(digito)
                 
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             timer.stop_step()
