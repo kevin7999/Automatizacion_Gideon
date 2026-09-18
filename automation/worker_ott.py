@@ -194,11 +194,11 @@ def crear_cuenta_ott(
             # Lógica de espera OTP (reutilizando crm_helpers)
             time.sleep(10) # Espera inicial
             codigo_otp = None
-            for intento in range(5):
+            for intento in range(15):
                 codigo_otp = obtener_codigo_otp_maildrop(email_base, nuevo_corr, context)
                 if codigo_otp:
                     break
-                log_callback(f"[Hilo {id_hilo}] OTP no encontrado, reintentando ({intento+1}/5)...")
+                log_callback(f"[Hilo {id_hilo}] OTP no encontrado, reintentando ({intento+1}/15)...")
                 time.sleep(10)
                 
             if not codigo_otp:
