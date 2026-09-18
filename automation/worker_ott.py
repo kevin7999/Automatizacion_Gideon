@@ -252,37 +252,47 @@ def crear_cuenta_ott(
             
             # P6: Dirección
             timer.start_step("P6: Dirección de Facturación")
-            # Aquí la usuaria indicó que usaremos MIRANDA siempre
             page.wait_for_selector("text='Dirección de facturación'")
             
             # Llenar dropdowns simulados
             # Estado
-            page.locator("text='Estado'").locator("..").locator("div").click()
-            page.locator("text='MIRANDA'").click()
+            page.get_by_text("Selecciona un estado").click(force=True)
+            page.get_by_text("MIRANDA", exact=True).click(force=True)
             time.sleep(1)
             
             # Ciudad
-            page.locator("text='Ciudad'").locator("..").locator("div").click()
-            page.locator("text='CARACAS'").click()
+            page.get_by_text("Selecciona tu ciudad").click(force=True)
+            page.get_by_text("CARACAS", exact=True).click(force=True)
             time.sleep(1)
             
             # Municipio
-            page.locator("text='Municipio'").locator("..").locator("div").click()
-            page.locator("text='CHACAO'").click()
+            page.get_by_text("Selecciona un municipio").click(force=True)
+            page.get_by_text("CHACAO", exact=True).click(force=True)
             time.sleep(1)
             
             # Zona
-            page.locator("text='Zona'").locator("..").locator("div").click()
-            page.locator("text='URB. EL ROSAL'").click()
+            page.get_by_text("Selecciona tu zona").click(force=True)
+            page.get_by_text("URB. EL ROSAL", exact=True).click(force=True)
+            time.sleep(1)
             
-            # Codigo postal
-            page.locator("input[placeholder='Código postal']").fill("1060") # fallback
+            # Código postal
+            page.get_by_text("Selecciona tu código postal").click(force=True)
+            page.get_by_text("1060", exact=True).click(force=True)
+            time.sleep(1)
             
-            page.get_by_label("Avenida / Calle").fill("Av Francisco de Miranda")
-            page.get_by_label("Edificio / Casa / Apartamento").fill("Torre Centro")
-            page.get_by_label("N° de Casa o Apartamento").fill("PB")
+            # Tipo de calle
+            page.get_by_text("Selecciona un tipo de calle").click(force=True)
+            # Podría ser AVENIDA, Avenida, etc. Buscamos parcial ignorando mayúsculas
+            page.locator("text=/avenida/i").first.click(force=True)
+            time.sleep(1)
             
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            # Entradas de texto
+            page.locator("input[placeholder*='avenida o calle']").fill("Principal", force=True)
+            page.locator("input[placeholder*='nombre del edificio']").fill("Torre Centro", force=True)
+            page.locator("input[placeholder*='número de casa']").fill("PB", force=True)
+            
+            btn_continuar_p6 = page.get_by_role("button", name="Continuar").last
+            btn_continuar_p6.click(force=True)
             timer.stop_step()
             
             # P7: Datos Adicionales
