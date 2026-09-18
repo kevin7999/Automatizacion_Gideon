@@ -134,17 +134,27 @@ def crear_cuenta_ott(
             timer.start_step("P3: Registro Simpletv+")
             page.wait_for_selector("text='Registro Simpletv+'")
             
+            # Nombres y apellidos
+            page.get_by_label("Nombre").click()
             page.get_by_label("Nombre").fill(nombre)
-            page.get_by_label("Apellido").fill(apellido)
+            page.get_by_label("Nombre").blur()
             
-            # Llenar Teléfono (usando press_sequentially para disparar eventos)
-            page.locator("select[name='phone.area']").select_option(prefijo_tel)
-            page.locator("input[name='phone.number']").press_sequentially(numero_tel, delay=50)
+            page.get_by_label("Apellido").click()
+            page.get_by_label("Apellido").fill(apellido)
+            page.get_by_label("Apellido").blur()
+            
+            # Llenar Teléfono
+            # El usuario indicó que no es necesario cambiar el prefijo, y tocarlo podría estar rompiendo el estado de React.
+            # page.locator("select[name='phone.area']").select_option(prefijo_tel)
+            
+            page.locator("input[name='phone.number']").click()
+            page.locator("input[name='phone.number']").fill(numero_tel)
+            page.locator("input[name='phone.number']").blur()
             
             # Llenar Correo
             page.locator("input[name='email']").click()
-            page.locator("input[name='email']").press_sequentially(email_generado, delay=50)
-            page.keyboard.press("Tab")
+            page.locator("input[name='email']").fill(email_generado)
+            page.locator("input[name='email']").blur()
             time.sleep(1)
             
             # Checkbox: Clicar el texto para asegurar que React dispare sus eventos sintéticos
