@@ -445,6 +445,9 @@ def crear_cuenta_ott(
             # Mantener el navegador abierto hasta que se cancele
             log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución finalizada. El navegador quedará abierto.")
             while not (cancel_event and cancel_event.is_set()):
+                if 'page' in locals() and page.is_closed():
+                    log_callback(f"[Hilo {id_hilo}] ℹ️ Ventana cerrada manualmente por el usuario. Finalizando hilo.")
+                    break
                 time.sleep(1)
             
             return {"exito": True, "error": None, "email": email_generado}
@@ -468,6 +471,9 @@ def crear_cuenta_ott(
             # Mantener el navegador abierto en caso de error
             log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución pausada por error. El navegador quedará abierto.")
             while not (cancel_event and cancel_event.is_set()):
+                if 'page' in locals() and page.is_closed():
+                    log_callback(f"[Hilo {id_hilo}] ℹ️ Ventana cerrada manualmente por el usuario. Finalizando hilo.")
+                    break
                 time.sleep(1)
                 
             return {"exito": False, "error": err_msg, "email": email_generado}
