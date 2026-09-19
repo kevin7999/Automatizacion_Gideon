@@ -950,7 +950,10 @@ class AppGideon(ctk.CTk):
         self.txt_log_ott.insert("end", f"[{hora}] {mensaje}\n")
         self.txt_log_ott.see("end")
         self.txt_log_ott.configure(state="disabled")
-        print(f"[OTT] [{hora}] {mensaje}")
+        try:
+            print(f"[OTT] [{hora}] {mensaje}")
+        except UnicodeEncodeError:
+            print(f"[OTT] [{hora}] {mensaje.encode('ascii', 'ignore').decode('ascii')}")
 
     def limpiar_log_consola_ott(self):
         self.txt_log_ott.configure(state="normal")
