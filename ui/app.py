@@ -933,23 +933,27 @@ class AppGideon(ctk.CTk):
         self.refrescar_vista_cola_ott()
 
     def update_kpis_ui_ott(self, ejecucion=0, exito=0, fallo=0):
-        if ejecucion != 0:
-            current = int(self.card_ejecucion_ott.winfo_children()[1].cget("text"))
-            self.card_ejecucion_ott.winfo_children()[1].configure(text=str(max(0, current + ejecucion)))
-        if exito != 0:
-            current = int(self.card_exito_ott.winfo_children()[1].cget("text"))
-            self.card_exito_ott.winfo_children()[1].configure(text=str(current + exito))
-        if fallo != 0:
-            current = int(self.card_fallo_ott.winfo_children()[1].cget("text"))
-            self.card_fallo_ott.winfo_children()[1].configure(text=str(current + fallo))
+        def _actualizar():
+            if ejecucion != 0:
+                current = int(self.card_ejecucion_ott.lbl_val.cget("text"))
+                self.card_ejecucion_ott.lbl_val.configure(text=str(max(0, current + ejecucion)))
+            if exito != 0:
+                current = int(self.card_exito_ott.lbl_val.cget("text"))
+                self.card_exito_ott.lbl_val.configure(text=str(current + exito))
+            if fallo != 0:
+                current = int(self.card_fallo_ott.lbl_val.cget("text"))
+                self.card_fallo_ott.lbl_val.configure(text=str(current + fallo))
+        self.after(0, _actualizar)
 
     def log_salida_ott(self, mensaje):
         from datetime import datetime
         hora = datetime.now().strftime("%H:%M:%S")
-        self.txt_log_ott.configure(state="normal")
-        self.txt_log_ott.insert("end", f"[{hora}] {mensaje}\n")
-        self.txt_log_ott.see("end")
-        self.txt_log_ott.configure(state="disabled")
+        def _log():
+            self.txt_log_ott.configure(state="normal")
+            self.txt_log_ott.insert("end", f"[{hora}] {mensaje}\n")
+            self.txt_log_ott.see("end")
+            self.txt_log_ott.configure(state="disabled")
+        self.after(0, _log)
         try:
             print(f"[OTT] [{hora}] {mensaje}")
         except UnicodeEncodeError:
