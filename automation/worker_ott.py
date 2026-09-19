@@ -4,7 +4,9 @@ import random
 import re
 from playwright.sync_api import sync_playwright
 
-from core.correlativos import obtener_siguiente_correlativo, registrar_cuenta_creada, formatear_error_amigable
+from core.correlativos import (
+    obtener_siguiente_correlativo, formatear_error_amigable, registrar_cuenta_creada
+)
 from core.generadores import generar_telefono_ve
 
 from automation.worker import StepTimer
@@ -93,7 +95,7 @@ def crear_cuenta_ott(
         apellido = "Test"
         rif_completo = f"{prefijo_ced}-{cedula}"
             
-        email_base = sys_config.get("email_test_generico", "testgatb")
+        email_base = sys_config.get("prefijo_email", "testgatb") + "ott"
         if "@" in email_base:
             email_base = email_base.split("@")[0]
         email_generado = f"{email_base}{nuevo_corr}@maildrop.cc"
@@ -122,7 +124,7 @@ def crear_cuenta_ott(
             def guardar_evidencia(nombre_paso):
                 try:
                     paso_limpio = nombre_paso.replace(':', '').replace(' ', '_')
-                    path = os.path.join(os.getcwd(), "Evidencias_QA", f"Hilo{id_hilo}_{email_generado}_{paso_limpio}.png")
+                    path = os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"Hilo{id_hilo}_{email_generado}_{paso_limpio}.png")
                     os.makedirs(os.path.dirname(path), exist_ok=True)
                     page.screenshot(path=path, full_page=True)
                 except:
@@ -209,7 +211,7 @@ def crear_cuenta_ott(
             # NO enviaremos Enter porque puede interactuar negativamente con el checkbox si quedó enfocado
             
             # DEBUG SCREENSHOT 1
-            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_after_click.png"))
+            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"debug_{id_hilo}_after_click.png"))
             
             if "page" in locals(): guardar_evidencia(timer.current_step)
             
@@ -224,11 +226,11 @@ def crear_cuenta_ott(
                 time.sleep(2)
             except Exception as e:
                 # DEBUG SCREENSHOT 2 (If it times out)
-                page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_timeout_otp.png"))
+                page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"debug_{id_hilo}_timeout_otp.png"))
                 raise e
             
             # DEBUG SCREENSHOT 3 (If it succeeded)
-            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA", f"debug_{id_hilo}_reached_otp.png"))
+            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"debug_{id_hilo}_reached_otp.png"))
             
             # ir a maildrop
             log_callback(f"[Hilo {id_hilo}] ⏳ Esperando código OTP en {email_generado}...")
@@ -442,6 +444,23 @@ def crear_cuenta_ott(
             
             update_kpi_callback(exito=1)
             
+            # Guardar historial OTT exitoso
+            datos_log = {
+                "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "Tipo_Persona": tipo_persona,
+                "Documento_RIF": cedula,
+                "Nombre_o_Empresa": f"{nombre} {apellido}",
+                "Email": email_generado,
+                "Telefono": telefono_completo,
+                "Ubicacion": "OTT",
+                "Plan": plan_ott,
+                "Estado": "Exitosa",
+                "Tiempo_Total_Segundos": f"{timer.get_total_duration():.1f}s",
+                "Desglose_Tiempos": timer.get_breakdown_str(),
+                "ID_Cliente": ""
+            }
+            registrar_cuenta_creada(datos_log)
+            
             # Mantener el navegador abierto hasta que se cancele
             log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución finalizada. El navegador quedará abierto.")
             while not (cancel_event and cancel_event.is_set()):
@@ -460,13 +479,30 @@ def crear_cuenta_ott(
             
             if browser:
                 try:
-                    path_err = os.path.join(os.getcwd(), "Evidencias_QA", f"error_ott_{id_hilo}.png")
+                    path_err = os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"error_ott_{id_hilo}.png")
                     page.screenshot(path=path_err)
                     log_callback(f"📸 Evidencia guardada en {path_err}")
                 except:
                     pass
             
             update_kpi_callback(fallo=1)
+            
+            # Guardar historial OTT fallido
+            datos_err = {
+                "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "Tipo_Persona": tipo_persona,
+                "Documento_RIF": cedula,
+                "Nombre_o_Empresa": f"{nombre} {apellido}",
+                "Email": email_generado,
+                "Telefono": telefono_completo,
+                "Ubicacion": "OTT",
+                "Plan": plan_ott,
+                "Estado": f"Error: {err_msg}",
+                "Tiempo_Total_Segundos": f"{timer.get_total_duration():.1f}s",
+                "Desglose_Tiempos": timer.get_breakdown_str(),
+                "ID_Cliente": ""
+            }
+            registrar_cuenta_creada(datos_err)
             
             # Mantener el navegador abierto en caso de error
             log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución pausada por error. El navegador quedará abierto.")

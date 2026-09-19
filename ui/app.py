@@ -1088,6 +1088,8 @@ class AppGideon(ctk.CTk):
                 self.log_salida_ott("✅ Proceso OTT finalizado por completo.")
             self.btn_iniciar_ott.configure(state="normal")
             self.btn_cancelar_ott.configure(state="disabled")
+            if hasattr(self, 'cargar_historial_reporte'):
+                self.cargar_historial_reporte()
             
         self.after(500, _finalizar)
 

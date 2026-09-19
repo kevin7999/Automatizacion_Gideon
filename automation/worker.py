@@ -132,7 +132,7 @@ def crear_cuenta_individual(id_hilo, config_cuenta, sys_config, log_callback, up
     # Carpeta de evidencia QA
     fecha_hoy = time.strftime("%Y-%m-%d")
     nombre_carpeta_cliente = email.split('@')[0]
-    ruta_evidencia = os.path.join("Evidencias_QA", fecha_hoy, nombre_carpeta_cliente)
+    ruta_evidencia = os.path.join("Evidencias_QA_Fibra", fecha_hoy, nombre_carpeta_cliente)
     os.makedirs(ruta_evidencia, exist_ok=True)
 
     log_callback(f"🚀 [Hilo {id_hilo}] INICIANDO | {tipo_persona} | {ubicacion} | {plan_seleccionado} | Email: {email}")
