@@ -281,7 +281,7 @@ def crear_cuenta_ott(
             # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
             cedula_input = page.locator("input[placeholder*='cédula de identidad'], input[placeholder*='Cédula']").first
                         # Seleccionar tipo de documento (V, E, P) mediante inyección JS
-            page.evaluate(f"""(prefijo) => {
+            page.evaluate("""(prefijo) => {
                 const selects = Array.from(document.querySelectorAll('select'));
                 // Buscar el select que tenga las opciones V, E, P
                 const select = selects.find(s => {
