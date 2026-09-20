@@ -75,7 +75,11 @@ def cargar_catalogo_direcciones_ott(ruta_archivo=ARCHIVO_DIRECCIONES_OTT):
                         "city": clean_row.get("Ciudad", "caracas"),
                         "municipality": clean_row.get("Municipio", "libertador"),
                         "zone": clean_row.get("Zona", "chacaito"),
-                        "postal_code": clean_row.get("Codigo_Postal", "1060")
+                        "postal_code": clean_row.get("Codigo_Postal", "1060"),
+                        "street_type": clean_row.get("Tipo_Calle", "avenida"),
+                        "street_name": clean_row.get("Avenida_Calle", "Av Venezuela"),
+                        "building_name": clean_row.get("Edificio_Casa", "torre directv"),
+                        "house_number": clean_row.get("Num_Casa", "533")
                     }
     except Exception as e:
         print(f"Error al leer el catálogo de direcciones OTT: {e}")
@@ -83,7 +87,8 @@ def cargar_catalogo_direcciones_ott(ruta_archivo=ARCHIVO_DIRECCIONES_OTT):
     if not catalogo_dir:
         catalogo_dir["Caracas"] = {
             "state": "distrito capital", "city": "caracas", "municipality": "libertador",
-            "zone": "chacaito", "postal_code": "1060"
+            "zone": "chacaito", "postal_code": "1060", "street_type": "avenida",
+            "street_name": "Av Venezuela", "building_name": "torre directv", "house_number": "533"
         }
     return catalogo_dir
 

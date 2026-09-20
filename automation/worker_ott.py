@@ -418,13 +418,13 @@ def crear_cuenta_ott(
             page.wait_for_timeout(2000)
             
             # Tipo de calle
-            react_select_by_text(page, 'billingAddress.streetType', 'avenida')
+            react_select_by_text(page, 'billingAddress.streetType', dir_data["street_type"])
             page.wait_for_timeout(2000)
             
             # Entradas de texto
-            page.locator("input[placeholder*='avenida o calle']").fill("Av Venezuela", force=True)
-            page.locator("input[placeholder*='nombre del edificio']").fill("torre directv", force=True)
-            page.locator("input[placeholder*='número de casa']").fill("533", force=True)
+            page.locator("input[placeholder*='avenida o calle']").fill(dir_data["street_name"], force=True)
+            page.locator("input[placeholder*='nombre del edificio']").fill(dir_data["building_name"], force=True)
+            page.locator("input[placeholder*='número de casa']").fill(dir_data["house_number"], force=True)
             
             if "page" in locals(): guardar_evidencia(timer.current_step)
             
@@ -517,16 +517,30 @@ def crear_cuenta_ott(
                 "Telefono": telefono_completo,
                 "Ubicacion": ubicacion_ott,
                 "Plan": plan_ott,
-                "Estado": "EXITOSO (Cuenta Activada)",
+                "Estado": "EXITOSO (Pendiente Pago)",
                 "Tiempo_Total_Segundos": f"{tiempo_total}s",
                 "Desglose_Tiempos": desglose_str,
                 "ID_Cliente": ""
             }
             registrar_cuenta_creada(datos_log)
-            # Mantener el navegador abierto hasta que el usuario termine el pago y lo cierre
             if browser and browser.is_connected():
+                # Notificación Sonora
+                try:
+                    import winsound
+                    winsound.Beep(1000, 300)
+                    winsound.Beep(1500, 400)
+                except:
+                    pass
+                    
                 log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución finalizada. El navegador quedará abierto para que realices el pago.")
-                while not (cancel_event and cancel_event.is_set()):
+                while True:
+                    if cancel_event and cancel_event.is_set():
+                        log_callback(f"[Hilo {id_hilo}] 🚫 Cancelación manual. Cerrando navegador.")
+                        try:
+                            browser.close()
+                        except: pass
+                        break
+                        
                     try:
                         cerrado = False
                         if not browser.is_connected(): cerrado = True
@@ -538,7 +552,7 @@ def crear_cuenta_ott(
                         
                         page.wait_for_timeout(1000)
                     except Exception as e:
-                        log_callback(f"[Hilo {id_hilo}] ℹ️ Navegador cerrado manualmente. Liberando hilo.")
+                        log_callback(f"[Hilo {id_hilo}] ℹ️ Navegador cerrado o desconectado. Liberando hilo.")
                         break
             return {"exito": True, "error": None, "email": email_generado}
             

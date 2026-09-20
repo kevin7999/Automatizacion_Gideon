@@ -16,7 +16,7 @@ from core.config import (
     CONFIG_FILE, DEFAULT_CONFIG, cargar_configuracion, guardar_configuracion
 )
 from core.catalogos import (
-    ARCHIVO_PLANES, ARCHIVO_DIRECCIONES, cargar_catalogo_planes, cargar_catalogo_direcciones, cargar_catalogo_direcciones_ott, cargar_catalogo_ott
+    ARCHIVO_PLANES, ARCHIVO_DIRECCIONES, cargar_catalogo_planes, cargar_catalogo_direcciones, cargar_catalogo_direcciones_ott, cargar_catalogo_ott, ARCHIVO_OTT, ARCHIVO_DIRECCIONES_OTT
 )
 from core.correlativos import (
     leer_correlativo_actual, obtener_siguiente_correlativo, actualizar_correlativo_manual
@@ -849,10 +849,22 @@ class AppGideon(ctk.CTk):
         hdr_form.pack(fill="x", padx=12, pady=(10, 8))
         ctk.CTkLabel(hdr_form, text="🎯 CONFIGURACIÓN PLAN OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#d9480f", "#ff922b")).pack(side="left")
 
+        # Botón de Actualizar Catálogo OTT en el header
+        ctk.CTkButton(
+            hdr_form, text="🔄 Actualizar", width=80, height=24, command=self.recargar_catalogo_ott_ui,
+            fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=10, weight="bold")
+        ).pack(side="right")
+
         # Plan OTT
-        ctk.CTkLabel(card_form, text="Seleccione el Plan OTT:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(2, 2))
-        planes_ott_list = list(CATALOGO_OTT.keys()) if CATALOGO_OTT else ["Litesports", "Gold", "Platino", "Diamante"]
+        frame_plan_lbl = ctk.CTkFrame(card_form, fg_color="transparent")
+        frame_plan_lbl.pack(fill="x", padx=12, pady=(2, 2))
+        ctk.CTkLabel(frame_plan_lbl, text="Seleccione el Plan OTT:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+        ctk.CTkButton(
+            frame_plan_lbl, text="📦 CSV Planes", width=70, height=20, command=self.abrir_csv_catalogo_ott,
+            fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=9, weight="bold")
+        ).pack(side="right")
         
+        planes_ott_list = list(CATALOGO_OTT.keys()) if CATALOGO_OTT else ["Litesports", "Gold", "Platino", "Diamante"]
         self.cmb_plan_ott = ctk.CTkOptionMenu(
             card_form, values=planes_ott_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
         )
@@ -866,7 +878,14 @@ class AppGideon(ctk.CTk):
         self.cmb_doc_ott.pack(fill="x", padx=12, pady=(0, 8))
 
         # Ubicación
-        ctk.CTkLabel(card_form, text="Ubicación (Estado/Ciudad):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(10, 2))
+        frame_ubi_lbl = ctk.CTkFrame(card_form, fg_color="transparent")
+        frame_ubi_lbl.pack(fill="x", padx=12, pady=(10, 2))
+        ctk.CTkLabel(frame_ubi_lbl, text="Ubicación (Estado/Ciudad):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+        ctk.CTkButton(
+            frame_ubi_lbl, text="📍 CSV Ubicaciones", width=90, height=20, command=self.abrir_csv_direcciones_ott,
+            fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=9, weight="bold")
+        ).pack(side="right")
+        
         estados_list = list(CATALOGO_DIRECCIONES_OTT.keys()) if CATALOGO_DIRECCIONES_OTT else ["Miranda", "Caracas"]
         self.cmb_ubicacion_ott = ctk.CTkOptionMenu(
             card_form, values=estados_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
@@ -1082,11 +1101,10 @@ class AppGideon(ctk.CTk):
             self.log_salida_ott("🛑 [SISTEMA] Solicitud de CANCELACIÓN OTT recibida...")
 
     def ejecutar_hilos_ott(self):
-        try:
-            num_hilos = int(self.cmb_hilos_ott.get())
-        except ValueError:
-            num_hilos = 2
-            
+        # Sobreescribimos cualquier configuración del slider: OTT SIEMPRE DEBE SER 1 HILO
+        # para evitar bloqueos por concurrencia (anti-spam) de Maildrop y Simpletv.
+        num_hilos = 1
+        
         self.config_sys["hilos_simultaneos_ott"] = num_hilos
         guardar_configuracion(self.config_sys)
         
@@ -2102,6 +2120,43 @@ class AppGideon(ctk.CTk):
             self.log_salida(f"📍 Abriendo '{ARCHIVO_DIRECCIONES}' en Excel o visor del sistema...")
         except Exception as e:
             self.log_salida(f"⚠️ No se pudo abrir automáticamente '{ARCHIVO_DIRECCIONES}': {e}")
+
+    def recargar_catalogo_ott_ui(self):
+        global CATALOGO_OTT, CATALOGO_DIRECCIONES_OTT
+        CATALOGO_OTT = cargar_catalogo_ott()
+        CATALOGO_DIRECCIONES_OTT = cargar_catalogo_direcciones_ott()
+        
+        planes_ott_list = list(CATALOGO_OTT.keys()) if CATALOGO_OTT else ["Litesports", "Gold", "Platino", "Diamante"]
+        if hasattr(self, 'cmb_plan_ott'):
+            self.cmb_plan_ott.configure(values=planes_ott_list)
+            if self.cmb_plan_ott.get() not in planes_ott_list and planes_ott_list:
+                self.cmb_plan_ott.set(planes_ott_list[0])
+                
+        estados_list = list(CATALOGO_DIRECCIONES_OTT.keys()) if CATALOGO_DIRECCIONES_OTT else ["Miranda", "Caracas"]
+        if hasattr(self, 'cmb_ubicacion_ott'):
+            self.cmb_ubicacion_ott.configure(values=estados_list)
+            if self.cmb_ubicacion_ott.get() not in estados_list and estados_list:
+                self.cmb_ubicacion_ott.set(estados_list[0])
+                
+        self.log_salida_ott(f"🔄 Catálogos OTT actualizados: {len(CATALOGO_OTT)} planes y {len(CATALOGO_DIRECCIONES_OTT)} ubicaciones.")
+
+    def abrir_csv_catalogo_ott(self):
+        if not os.path.exists(ARCHIVO_OTT):
+            cargar_catalogo_ott()
+        try:
+            os.startfile(ARCHIVO_OTT)
+            self.log_salida_ott(f"📂 Abriendo '{ARCHIVO_OTT}' en Excel o visor del sistema...")
+        except Exception as e:
+            self.log_salida_ott(f"⚠️ No se pudo abrir automáticamente '{ARCHIVO_OTT}': {e}")
+
+    def abrir_csv_direcciones_ott(self):
+        if not os.path.exists(ARCHIVO_DIRECCIONES_OTT):
+            cargar_catalogo_direcciones_ott()
+        try:
+            os.startfile(ARCHIVO_DIRECCIONES_OTT)
+            self.log_salida_ott(f"📍 Abriendo '{ARCHIVO_DIRECCIONES_OTT}' en Excel o visor del sistema...")
+        except Exception as e:
+            self.log_salida_ott(f"⚠️ No se pudo abrir automáticamente '{ARCHIVO_DIRECCIONES_OTT}': {e}")
 
     # -------------------------------------------------------------
     # 🛠️ MÉTODOS Y EVENTOS PRINCIPALES
