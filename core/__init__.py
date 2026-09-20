@@ -9,7 +9,8 @@ from .generadores import (
 )
 from .catalogos import (
     ARCHIVO_DIRECCIONES, ARCHIVO_PLANES, PASSWORD_DEFAULT,
-    cargar_catalogo_direcciones, cargar_catalogo_planes
+    cargar_catalogo_direcciones, cargar_catalogo_direcciones_ott,
+    cargar_catalogo_planes
 )
 from .correlativos import (
     leer_correlativo_actual, obtener_siguiente_correlativo,

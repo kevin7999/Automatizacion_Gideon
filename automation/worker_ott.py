@@ -7,11 +7,15 @@ from playwright.sync_api import sync_playwright
 from core.correlativos import (
     obtener_siguiente_correlativo, formatear_error_amigable, registrar_cuenta_creada
 )
-from core.generadores import generar_telefono_ve
+from core.generadores import generar_telefono_ve, generar_nombre_humano_limpio
 
+from core.catalogos import cargar_catalogo_direcciones_ott, cargar_catalogo_ott
 from automation.worker import StepTimer
 
-def obtener_codigo_otp_maildrop(email_base, correlativo, p_context):
+CATALOGO_DIRECCIONES_OTT = cargar_catalogo_direcciones_ott()
+CATALOGO_OTT = cargar_catalogo_ott()
+
+def obtener_codigo_otp_maildrop(email_base, correlativo, p_context, cancel_event=None):
     mailbox_name = f"{email_base}{correlativo}"
     page_maildrop = p_context.new_page()
     try:
@@ -19,6 +23,8 @@ def obtener_codigo_otp_maildrop(email_base, correlativo, p_context):
         
         codigo = None
         for i in range(5):
+            if cancel_event and cancel_event.is_set():
+                break
             page_maildrop.wait_for_timeout(3500)
             
             # Hacer clic en el primer correo de la lista (cualquiera que haya llegado)
@@ -70,13 +76,14 @@ def crear_cuenta_ott(
 ):
     tipo_persona = config_cuenta.get("tipo_persona")
     plan_ott = config_cuenta.get("plan_seleccionado")
+    ubicacion_ott = config_cuenta.get("ubicacion", "OTT")
     
     timer = StepTimer(id_hilo, log_callback, update_thread_status_callback)
     
     # 1. Preparar Datos Generados
     timer.start_step("P0: Preparación")
     try:
-        nuevo_corr = obtener_siguiente_correlativo()
+        nuevo_corr = obtener_siguiente_correlativo("contador_email_ott.txt")
         telefono_completo = generar_telefono_ve()
         prefijo_tel = telefono_completo[:4]
         numero_tel = telefono_completo[4:]
@@ -91,14 +98,23 @@ def crear_cuenta_ott(
             prefijo_ced = "V"
             
         cedula = str(random.randint(10000000, 30000000))
-        nombre = "Gideon"
-        apellido = "Test"
+        nombre, apellido = generar_nombre_humano_limpio()
         rif_completo = f"{prefijo_ced}-{cedula}"
             
-        email_base = sys_config.get("prefijo_email", "testgatb") + "ott"
+        email_base = sys_config.get("prefijo_email_ott", "testgatbott")
         if "@" in email_base:
             email_base = email_base.split("@")[0]
-        email_generado = f"{email_base}{nuevo_corr}@maildrop.cc"
+        mailbox_name = f"{email_base}{nuevo_corr}"
+        email_generado = f"{mailbox_name}@maildrop.cc"
+        
+        tipo_cliente_str = "Venezolano"
+        if tipo_doc == "Foreigner": tipo_cliente_str = "Extranjero"
+        elif tipo_doc == "Passport": tipo_cliente_str = "Pasaporte"
+        elif tipo_doc == "Legal": tipo_cliente_str = "Jurídico"
+        elif tipo_doc == "Government": tipo_cliente_str = "Gubernamental"
+        
+        fecha_hoy = time.strftime("%Y-%m-%d")
+        carpeta_evidencias = os.path.join(os.getcwd(), "Evidencias_QA", fecha_hoy, mailbox_name)
         
         log_callback(f"[Hilo {id_hilo}] 📝 OTT: {nombre} {apellido} | {cedula} | {email_generado} | Plan: {plan_ott}")
         if "page" in locals(): guardar_evidencia(timer.current_step)
@@ -115,8 +131,8 @@ def crear_cuenta_ott(
         try:
             # P1: Lanzar Navegador
             timer.start_step("P1: Iniciar Navegador")
-            browser = p.chromium.launch(headless=False, slow_mo=50) # Mostrar UI para debugging
-            context = browser.new_context(viewport={"width": 1280, "height": 800})
+            browser = p.chromium.launch(headless=False, slow_mo=50, args=["--start-maximized"]) # Mostrar UI para debugging
+            context = browser.new_context(no_viewport=True)
             page = context.new_page()
             page.set_default_timeout(45000)
 
@@ -124,9 +140,10 @@ def crear_cuenta_ott(
             def guardar_evidencia(nombre_paso):
                 try:
                     paso_limpio = nombre_paso.replace(':', '').replace(' ', '_')
-                    path = os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"Hilo{id_hilo}_{email_generado}_{paso_limpio}.png")
-                    os.makedirs(os.path.dirname(path), exist_ok=True)
-                    page.screenshot(path=path, full_page=True)
+                    os.makedirs(carpeta_evidencias, exist_ok=True)
+                    path = os.path.join(carpeta_evidencias, f"Hilo{id_hilo}_{paso_limpio}.png")
+                    if 'page' in locals() and not page.is_closed():
+                        page.screenshot(path=path, full_page=True, timeout=2000)
                 except:
                     pass
             if "page" in locals(): guardar_evidencia(timer.current_step)
@@ -137,28 +154,43 @@ def crear_cuenta_ott(
             page.goto("https://tiendatesting.simple.com.ve/planes-streaming")
             page.wait_for_load_state("networkidle")
             
-            # Buscar el plan correspondiente. Ej: si es "Litesports", buscamos "Plan Lite"
-            # Mapeo:
+            # Buscar el paquete y la variante en el catálogo
+            datos_plan = CATALOGO_OTT.get(plan_ott, {"paquete": plan_ott, "variante": ""})
+            paquete_base = datos_plan["paquete"]
+            variante = datos_plan["variante"]
+            
+            # Mapeo del botón base:
             btn_selector = ""
-            if plan_ott.lower() == "litesports":
+            if "lite" in paquete_base.lower():
                 btn_selector = "text='Personalizar plan Lite'"
-            elif plan_ott.lower() == "gold":
+            elif "oro" in paquete_base.lower() or "gold" in paquete_base.lower():
                 btn_selector = "text='Personalizar plan Oro'"
-            elif plan_ott.lower() == "platino":
+            elif "platino" in paquete_base.lower():
                 btn_selector = "text='Personalizar plan Platino'"
-            elif plan_ott.lower() == "diamante":
+            elif "diamante" in paquete_base.lower() or "diamond" in paquete_base.lower():
                 btn_selector = "text='Personalizar plan Diamante'"
             else:
-                btn_selector = f"text='Personalizar plan {plan_ott}'" # Fallback
+                btn_selector = f"text='Personalizar plan {paquete_base}'" # Fallback
             
             page.locator(btn_selector).click()
             page.wait_for_load_state("networkidle")
             
-            # Seleccionar la primera variante (o la gratuita)
-            # En la pantalla de variantes, hay botones "Ver canales" o el precio. Hacemos clic en el contenedor.
-            # Simplemente le damos a Continuar, por defecto asume la base.
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            # Seleccionar la variante si existe
+            if variante:
+                try:
+                    log_callback(f"[Hilo {id_hilo}] Seleccionando variante: {variante}")
+                    page.locator(f"text='{variante}'").first.click(force=True)
+                    page.wait_for_timeout(2000)
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ No se pudo seleccionar la variante '{variante}': {e}")
+            
+            # Continuar
             if "page" in locals(): guardar_evidencia(timer.current_step)
+            try:
+                page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            except:
+                page.get_by_role("button", name="Continuar").first.click(force=True)
+                
             timer.stop_step()
 
             # P3: Datos Básicos (Modal)
@@ -204,6 +236,8 @@ def crear_cuenta_ott(
             page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
             
+            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
             # Clicar Continuar
             btn_continuar = page.get_by_role("button", name="Continuar").last
             btn_continuar.click(force=True)
@@ -211,9 +245,8 @@ def crear_cuenta_ott(
             # NO enviaremos Enter porque puede interactuar negativamente con el checkbox si quedó enfocado
             
             # DEBUG SCREENSHOT 1
-            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"debug_{id_hilo}_after_click.png"))
-            
-            if "page" in locals(): guardar_evidencia(timer.current_step)
+            os.makedirs(carpeta_evidencias, exist_ok=True)
+            page.screenshot(path=os.path.join(carpeta_evidencias, f"debug_{id_hilo}_after_click.png"))
             
             timer.stop_step()
 
@@ -226,11 +259,13 @@ def crear_cuenta_ott(
                 time.sleep(2)
             except Exception as e:
                 # DEBUG SCREENSHOT 2 (If it times out)
-                page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"debug_{id_hilo}_timeout_otp.png"))
+                os.makedirs(carpeta_evidencias, exist_ok=True)
+                page.screenshot(path=os.path.join(carpeta_evidencias, f"debug_{id_hilo}_timeout_otp.png"))
                 raise e
             
             # DEBUG SCREENSHOT 3 (If it succeeded)
-            page.screenshot(path=os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"debug_{id_hilo}_reached_otp.png"))
+            os.makedirs(carpeta_evidencias, exist_ok=True)
+            page.screenshot(path=os.path.join(carpeta_evidencias, f"debug_{id_hilo}_reached_otp.png"))
             
             # ir a maildrop
             log_callback(f"[Hilo {id_hilo}] ⏳ Esperando código OTP en {email_generado}...")
@@ -238,11 +273,20 @@ def crear_cuenta_ott(
             time.sleep(10) # Espera inicial
             codigo_otp = None
             for intento in range(15):
-                codigo_otp = obtener_codigo_otp_maildrop(email_base, nuevo_corr, context)
+                if cancel_event and cancel_event.is_set():
+                    log_callback(f"[Hilo {id_hilo}] 🛑 Búsqueda de OTP cancelada.")
+                    raise Exception("Ejecución cancelada por el usuario.")
+                    
+                codigo_otp = obtener_codigo_otp_maildrop(email_base, nuevo_corr, context, cancel_event)
                 if codigo_otp:
                     break
                 log_callback(f"[Hilo {id_hilo}] OTP no encontrado, reintentando ({intento+1}/15)...")
-                time.sleep(10)
+                
+                # Espera de 10 segundos, verificando cancelación cada segundo
+                for _ in range(10):
+                    if cancel_event and cancel_event.is_set():
+                        raise Exception("Ejecución cancelada por el usuario.")
+                    time.sleep(1)
                 
             if not codigo_otp:
                 raise Exception("Tiempo de espera agotado buscando OTP en maildrop.")
@@ -261,12 +305,15 @@ def crear_cuenta_ott(
                 
             # Dar chance a React de actualizar el botón
             time.sleep(1)
+            
+            if "page" in locals(): guardar_evidencia(timer.current_step)
                 
             # Clicar Continuar
             btn_continuar_otp = page.get_by_role("button", name="Continuar").last
             btn_continuar_otp.click(force=True)
             
-            if "page" in locals(): guardar_evidencia(timer.current_step)
+            # Esperar a que la página procese el OTP
+            time.sleep(4)
             
             timer.stop_step()
 
@@ -274,11 +321,16 @@ def crear_cuenta_ott(
             timer.start_step("P5: Carrito y Contrato")
             
             # Click Continuar en Carrito
-            page.wait_for_selector("text='Debe completar el registro de datos para continuar con el pago'", timeout=20000)
+            try:
+                page.wait_for_selector("text='Debe completar el registro de datos para continuar con el pago'", state="visible", timeout=20000)
+            except:
+                pass # A veces no sale el texto o carga muy rápido, continuamos
+            time.sleep(2)
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             
             # El modal "Generación de contrato" aparece después del clic
-            page.wait_for_selector("text='Generación de contrato'", timeout=20000)
+            time.sleep(3)
+            page.wait_for_selector("text='Generación de contrato'", state="visible", timeout=20000)
             
             # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
             cedula_input = page.locator("input[placeholder*='cédula de identidad'], input[placeholder*='Cédula']").first
@@ -308,10 +360,14 @@ def crear_cuenta_ott(
             page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
             time.sleep(1)
             
+            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
             # Clicar Continuar
             btn_continuar_p5 = page.get_by_role("button", name="Continuar").last
             btn_continuar_p5.click(force=True)
-            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
+            # Dar tiempo al modal para cerrarse/transicionar
+            time.sleep(3)
             timer.stop_step()
             
             # P6: Dirección
@@ -333,41 +389,50 @@ def crear_cuenta_ott(
                     select.dispatchEvent(new Event('change', { bubbles: true }));
                 }""", [select_name, text_match])
             
+            dir_data = CATALOGO_DIRECCIONES_OTT.get(ubicacion_ott, CATALOGO_DIRECCIONES_OTT.get("Caracas", {
+                "state": "distrito capital", "city": "caracas", "municipality": "libertador",
+                "zone": "chacaito", "postal_code": "1060"
+            }))
+
             # Estado
-            react_select_by_text(page, 'billingAddress.state', 'distrito capital')
-            time.sleep(2) # Esperar a que cargue Ciudad
+            react_select_by_text(page, 'billingAddress.state', dir_data["state"])
+            page.wait_for_timeout(4000) # Esperar a que cargue Ciudad
             
             # Ciudad
-            react_select_by_text(page, 'billingAddress.city', 'caracas')
-            time.sleep(2) # Esperar a que cargue Municipio
+            react_select_by_text(page, 'billingAddress.city', dir_data["city"])
+            page.wait_for_timeout(4000) # Esperar a que cargue Municipio
             
             # Municipio
-            react_select_by_text(page, 'billingAddress.municipality', 'libertador')
-            time.sleep(2) # Esperar a que cargue Zona
+            react_select_by_text(page, 'billingAddress.municipality', dir_data["municipality"])
+            page.wait_for_timeout(4000) # Esperar a que cargue Zona
             
             # Zona
-            react_select_by_text(page, 'billingAddress.zone', 'chacaito')
-            time.sleep(2) # Esperar a que cargue Código postal
+            react_select_by_text(page, 'billingAddress.zone', dir_data["zone"])
+            page.wait_for_timeout(4000) # Esperar a que cargue Código postal
             
             # Código postal
             try:
-                react_select_by_text(page, 'billingAddress.postalCode', '1050')
+                react_select_by_text(page, 'billingAddress.postalCode', dir_data["postal_code"])
             except:
                 pass # A veces se autocompleta o es único
-            time.sleep(1)
+            page.wait_for_timeout(2000)
             
             # Tipo de calle
             react_select_by_text(page, 'billingAddress.streetType', 'avenida')
-            time.sleep(1)
+            page.wait_for_timeout(2000)
             
             # Entradas de texto
             page.locator("input[placeholder*='avenida o calle']").fill("Av Venezuela", force=True)
             page.locator("input[placeholder*='nombre del edificio']").fill("torre directv", force=True)
             page.locator("input[placeholder*='número de casa']").fill("533", force=True)
             
+            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
             btn_continuar_p6 = page.get_by_role("button", name="Continuar").last
             btn_continuar_p6.click(force=True)
-            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
+            # Transición a Datos Adicionales
+            time.sleep(3)
             timer.stop_step()
             
             # P7: Datos Adicionales
@@ -404,10 +469,14 @@ def crear_cuenta_ott(
             
             # Los demás campos no son obligatorios según la usuaria, así que los saltamos
             
+            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
             # Continuar P7
             # Usamos .last para asegurarnos de hacer clic en el botón del modal y no en el del carrito de fondo
             page.get_by_role("button", name="Continuar").last.click(force=True)
-            if "page" in locals(): guardar_evidencia(timer.current_step)
+            
+            # Transición a P8 (Aceptación de documentos)
+            time.sleep(4)
             timer.stop_step()
             
             # P8: Aceptación
@@ -416,6 +485,8 @@ def crear_cuenta_ott(
             
             # Marcar checkbox (forzando para evadir estilos custom)
             page.locator("input[type='checkbox']").first.check(force=True)
+            
+            if "page" in locals(): guardar_evidencia(timer.current_step)
             
             # Aceptar / Continuar contrato
             # Usamos regex por si el botón dice 'Aceptar' o 'Continuar'
@@ -426,49 +497,49 @@ def crear_cuenta_ott(
                 page.wait_for_selector("button:has-text('Pagar ahora')", timeout=20000)
             except:
                 pass # Si cambia el texto, no queremos crashear
-            if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step("Exito")
             
             log_callback(f"[Hilo {id_hilo}] 🎉 Flujo OTT Completado! Correo: {email_generado}")
             
-            # Registrar en catálogo
-            registrar_cuenta_creada(
-                email=email_generado,
-                plan=plan_ott,
-                direccion="Miranda - Chacao",
-                cliente=tipo_persona,
-                correlativo=nuevo_corr,
-                metodo_pago="N/A",
-                monto="0"
-            )
+            # Calcular benchmark de tiempos
+            tiempo_total, desglose_str = timer.print_benchmark(email_generado)
             
             update_kpi_callback(exito=1)
             
             # Guardar historial OTT exitoso
             datos_log = {
                 "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "Tipo_Persona": tipo_persona,
-                "Documento_RIF": cedula,
+                "Servicio": "OTT",
+                "Tipo_Persona": tipo_cliente_str,
+                "Documento_RIF": rif_completo,
                 "Nombre_o_Empresa": f"{nombre} {apellido}",
                 "Email": email_generado,
                 "Telefono": telefono_completo,
-                "Ubicacion": "OTT",
+                "Ubicacion": ubicacion_ott,
                 "Plan": plan_ott,
-                "Estado": "Exitosa",
-                "Tiempo_Total_Segundos": f"{timer.get_total_duration():.1f}s",
-                "Desglose_Tiempos": timer.get_breakdown_str(),
+                "Estado": "EXITOSO (Cuenta Activada)",
+                "Tiempo_Total_Segundos": f"{tiempo_total}s",
+                "Desglose_Tiempos": desglose_str,
                 "ID_Cliente": ""
             }
             registrar_cuenta_creada(datos_log)
-            
-            # Mantener el navegador abierto hasta que se cancele
-            log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución finalizada. El navegador quedará abierto.")
-            while not (cancel_event and cancel_event.is_set()):
-                if 'page' in locals() and page.is_closed():
-                    log_callback(f"[Hilo {id_hilo}] ℹ️ Ventana cerrada manualmente por el usuario. Finalizando hilo.")
-                    break
-                time.sleep(1)
-            
+            # Mantener el navegador abierto hasta que el usuario termine el pago y lo cierre
+            if browser and browser.is_connected():
+                log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución finalizada. El navegador quedará abierto para que realices el pago.")
+                while not (cancel_event and cancel_event.is_set()):
+                    try:
+                        cerrado = False
+                        if not browser.is_connected(): cerrado = True
+                        elif 'page' in locals() and page.is_closed(): cerrado = True
+                        
+                        if cerrado:
+                            log_callback(f"[Hilo {id_hilo}] ℹ️ Navegador cerrado manualmente tras el pago. Liberando hilo.")
+                            break
+                        
+                        page.wait_for_timeout(1000)
+                    except Exception as e:
+                        log_callback(f"[Hilo {id_hilo}] ℹ️ Navegador cerrado manualmente. Liberando hilo.")
+                        break
             return {"exito": True, "error": None, "email": email_generado}
             
         except Exception as e:
@@ -479,37 +550,37 @@ def crear_cuenta_ott(
             
             if browser:
                 try:
-                    path_err = os.path.join(os.getcwd(), "Evidencias_QA_OTT", f"error_ott_{id_hilo}.png")
-                    page.screenshot(path=path_err)
-                    log_callback(f"📸 Evidencia guardada en {path_err}")
+                    if 'page' in locals() and not page.is_closed():
+                        os.makedirs(carpeta_evidencias, exist_ok=True)
+                        path_err = os.path.join(carpeta_evidencias, f"error_ott_{id_hilo}.png")
+                        page.screenshot(path=path_err, timeout=2000)
+                        log_callback(f"📸 Evidencia guardada en {path_err}")
                 except:
                     pass
             
             update_kpi_callback(fallo=1)
             
+            # Calcular benchmark de tiempos
+            tiempo_total, desglose_str = timer.print_benchmark(email_generado)
+            
             # Guardar historial OTT fallido
             datos_err = {
                 "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "Tipo_Persona": tipo_persona,
-                "Documento_RIF": cedula,
+                "Servicio": "OTT",
+                "Tipo_Persona": tipo_cliente_str,
+                "Documento_RIF": rif_completo,
                 "Nombre_o_Empresa": f"{nombre} {apellido}",
                 "Email": email_generado,
                 "Telefono": telefono_completo,
-                "Ubicacion": "OTT",
+                "Ubicacion": ubicacion_ott,
                 "Plan": plan_ott,
                 "Estado": f"Error: {err_msg}",
-                "Tiempo_Total_Segundos": f"{timer.get_total_duration():.1f}s",
-                "Desglose_Tiempos": timer.get_breakdown_str(),
+                "Tiempo_Total_Segundos": f"{tiempo_total}s",
+                "Desglose_Tiempos": desglose_str,
                 "ID_Cliente": ""
             }
             registrar_cuenta_creada(datos_err)
             
-            # Mantener el navegador abierto en caso de error
-            log_callback(f"[Hilo {id_hilo}] 🛑 Ejecución pausada por error. El navegador quedará abierto.")
-            while not (cancel_event and cancel_event.is_set()):
-                if 'page' in locals() and page.is_closed():
-                    log_callback(f"[Hilo {id_hilo}] ℹ️ Ventana cerrada manualmente por el usuario. Finalizando hilo.")
-                    break
-                time.sleep(1)
+            log_callback(f"[Hilo {id_hilo}] ℹ️ Hilo fallido finalizado. Cerrando navegador y liberando recursos.")
                 
             return {"exito": False, "error": err_msg, "email": email_generado}

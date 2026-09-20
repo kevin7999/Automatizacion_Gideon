@@ -6,9 +6,11 @@ CONFIG_FILE = "config_gideon.json"
 
 DEFAULT_CONFIG = {
     "prefijo_email": "CAMBIALO_Fibrastest",
+    "prefijo_email_ott": "CAMBIALO_OTT",
     "usuario_login": "TestSebastian",
     "password_login": "I4FiJJ02aPY0af2",
     "hilos_simultaneos": 2,
+    "hilos_simultaneos_ott": 2,
     "modo_headless": False,
     "dominio_email": "maildrop.cc",
     "tema_apariencia": "Dark",

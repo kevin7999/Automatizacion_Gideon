@@ -104,7 +104,7 @@ def registrar_cuenta_creada(datos_cuenta, archivo_csv=ARCHIVO_CSV, archivo_json=
                 datos_limpios[k] = v
 
         file_exists = os.path.exists(archivo_csv)
-        campos = ["Fecha_Hora", "Tipo_Persona", "Documento_RIF", "Nombre_o_Empresa", "Email", "Telefono", "Ubicacion", "Plan", "Estado", "Tiempo_Total_Segundos", "Desglose_Tiempos", "ID_Cliente"]
+        campos = ["Fecha_Hora", "Servicio", "Tipo_Persona", "Documento_RIF", "Nombre_o_Empresa", "Email", "Telefono", "Ubicacion", "Plan", "Estado", "Tiempo_Total_Segundos", "Desglose_Tiempos", "ID_Cliente"]
         try:
             with open(archivo_csv, "a", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=campos)

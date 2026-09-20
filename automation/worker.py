@@ -249,6 +249,7 @@ def crear_cuenta_individual(id_hilo, config_cuenta, sys_config, log_callback, up
 
                 datos_log = {
                     "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "Servicio": "FTTH",
                     "Tipo_Persona": tipo_persona,
                     "Documento_RIF": f"{doc_tipo}: {doc_id}",
                     "Nombre_o_Empresa": nombre_o_empresa,
@@ -351,6 +352,7 @@ def crear_cuenta_individual(id_hilo, config_cuenta, sys_config, log_callback, up
 
             datos_log = {
                 "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "Servicio": "FTTH",
                 "Tipo_Persona": tipo_persona,
                 "Documento_RIF": f"{doc_tipo}: {doc_id}",
                 "Nombre_o_Empresa": nombre_o_empresa,
@@ -395,6 +397,7 @@ def crear_cuenta_individual(id_hilo, config_cuenta, sys_config, log_callback, up
             doc_tipo = config_cuenta.get("tipo_doc", config_cuenta.get("tipo_rif", "N/A"))
             datos_error = {
                 "Fecha_Hora": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "Servicio": "FTTH",
                 "Tipo_Persona": tipo_persona,
                 "Documento_RIF": f"{doc_tipo}: {doc_id}" if doc_id else doc_tipo,
                 "Nombre_o_Empresa": company_name if tipo_persona == "Persona jurídica" else f"{first_name} {last_name}".strip(),

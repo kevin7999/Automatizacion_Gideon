@@ -2,6 +2,7 @@ import os
 import csv
 
 ARCHIVO_DIRECCIONES = "catalogo_direcciones.csv"
+ARCHIVO_DIRECCIONES_OTT = "catalogo_direcciones_ott.csv"
 ARCHIVO_PLANES = "catalogo_planes.csv"
 ARCHIVO_OTT = "catalogo_ott.csv"
 PASSWORD_DEFAULT = "Ingreso-1"
@@ -44,6 +45,45 @@ def cargar_catalogo_direcciones(ruta_archivo=ARCHIVO_DIRECCIONES):
         catalogo_dir["Caracas"] = {
             "state": "Distrito capital", "city": "Caracas", "municipality": "Libertador",
             "neighbourhood": "URB. CHACAITO", "postal_code": "1050", "building_house": "Torre Directv"
+        }
+    return catalogo_dir
+
+def cargar_catalogo_direcciones_ott(ruta_archivo=ARCHIVO_DIRECCIONES_OTT):
+    catalogo_dir = {}
+    if not os.path.exists(ruta_archivo):
+        try:
+            with open(ruta_archivo, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Ubicacion", "Estado", "Ciudad", "Municipio", "Zona", "Codigo_Postal"])
+                writer.writerow(["Caracas", "distrito capital", "caracas", "libertador", "chacaito", "1060"])
+                writer.writerow(["Miranda", "miranda", "caracas", "chacao", "el rosal", "1060"])
+        except Exception as e:
+            print(f"Error creando plantilla de direcciones OTT CSV: {e}")
+
+    try:
+        with open(ruta_archivo, "r", encoding="utf-8-sig", errors="replace") as f:
+            muestra = f.read(2048)
+            f.seek(0)
+            delimitador = ";" if ";" in muestra and muestra.count(";") > muestra.count(",") else ","
+            reader = csv.DictReader(f, delimiter=delimitador)
+            for row in reader:
+                clean_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k is not None and v is not None}
+                ubicacion = clean_row.get("Ubicacion")
+                if ubicacion:
+                    catalogo_dir[ubicacion] = {
+                        "state": clean_row.get("Estado", "distrito capital"),
+                        "city": clean_row.get("Ciudad", "caracas"),
+                        "municipality": clean_row.get("Municipio", "libertador"),
+                        "zone": clean_row.get("Zona", "chacaito"),
+                        "postal_code": clean_row.get("Codigo_Postal", "1060")
+                    }
+    except Exception as e:
+        print(f"Error al leer el catálogo de direcciones OTT: {e}")
+
+    if not catalogo_dir:
+        catalogo_dir["Caracas"] = {
+            "state": "distrito capital", "city": "caracas", "municipality": "libertador",
+            "zone": "chacaito", "postal_code": "1060"
         }
     return catalogo_dir
 
@@ -125,11 +165,19 @@ def cargar_catalogo_ott(ruta_archivo=ARCHIVO_OTT):
         try:
             with open(ruta_archivo, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f)
-                writer.writerow(["Identificador", "Paquete"])
-                writer.writerow(["Litesports", "Litesports"])
-                writer.writerow(["Gold", "Gold"])
-                writer.writerow(["Platino", "Platino"])
-                writer.writerow(["Diamante", "Diamante"])
+                writer.writerow(["Identificador", "Paquete", "Variante"])
+                writer.writerow(["Lite Gratis", "Lite", "Lite (GRATIS)"])
+                writer.writerow(["Lite Sports", "Lite", "ByM Sport"])
+                writer.writerow(["Lite Sports +", "Lite", "DSports + ByM Sport"])
+                writer.writerow(["Lite Cine", "Lite", "HBO"])
+                writer.writerow(["Oro", "Oro", "Oro"])
+                writer.writerow(["Oro Cine (HBO)", "Oro", "HBO"])
+                writer.writerow(["Oro Sports (DSports)", "Oro", "DSports"])
+                writer.writerow(["Oro Prime", "Oro", "Prime"])
+                writer.writerow(["Platino", "Platino", "Platino"])
+                writer.writerow(["Platino Cine (HBO)", "Platino", "HBO"])
+                writer.writerow(["Platino Sports (DSports)", "Platino", "DSports"])
+                writer.writerow(["Diamante", "Diamante", "Diamante"])
         except Exception as e:
             print(f"Error creando plantilla CSV de planes OTT: {e}")
 
@@ -144,7 +192,8 @@ def cargar_catalogo_ott(ruta_archivo=ARCHIVO_OTT):
                 nombre_id = clean_row.get("Identificador")
                 if nombre_id:
                     catalogo[nombre_id] = {
-                        "paquete": clean_row.get("Paquete", nombre_id)
+                        "paquete": clean_row.get("Paquete", nombre_id),
+                        "variante": clean_row.get("Variante", "")
                     }
     except PermissionError:
         print(f"⚠️ [AVISO] El archivo '{ruta_archivo}' está bloqueado (posiblemente abierto en Excel).")
@@ -152,6 +201,6 @@ def cargar_catalogo_ott(ruta_archivo=ARCHIVO_OTT):
         print(f"Error al leer el catálogo de planes OTT: {e}")
 
     if not catalogo:
-        catalogo["Gold"] = {"paquete": "Gold"}
+        catalogo["Lite Gratis"] = {"paquete": "Lite", "variante": "Lite (GRATIS)"}
 
     return catalogo

@@ -1,5 +1,13 @@
-Identificador,Paquete
-Litesports,Litesports
-Gold,Gold
-Platino,Platino
-Diamante,Diamante
+Identificador,Paquete,Variante
+Lite Gratis,Lite,Lite (GRATIS)
+Lite Sports,Lite,ByM Sport
+Lite Sports +,Lite,DSports + ByM Sport
+Lite Cine,Lite,HBO
+Oro,Oro,Oro
+Oro Cine (HBO),Oro,HBO
+Oro Sports (DSports),Oro,DSports
+Oro Prime,Oro,Prime
+Platino,Platino,Platino
+Platino Cine (HBO),Platino,HBO
+Platino Sports (DSports),Platino,DSports
+Diamante,Diamante,Diamante

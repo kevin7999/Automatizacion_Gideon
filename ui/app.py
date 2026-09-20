@@ -16,7 +16,7 @@ from core.config import (
     CONFIG_FILE, DEFAULT_CONFIG, cargar_configuracion, guardar_configuracion
 )
 from core.catalogos import (
-    ARCHIVO_PLANES, ARCHIVO_DIRECCIONES, cargar_catalogo_planes, cargar_catalogo_direcciones, cargar_catalogo_ott
+    ARCHIVO_PLANES, ARCHIVO_DIRECCIONES, cargar_catalogo_planes, cargar_catalogo_direcciones, cargar_catalogo_direcciones_ott, cargar_catalogo_ott
 )
 from core.correlativos import (
     leer_correlativo_actual, obtener_siguiente_correlativo, actualizar_correlativo_manual
@@ -27,6 +27,7 @@ from automation.worker_ott import crear_cuenta_ott
 
 CATALOGO_PLANES = cargar_catalogo_planes()
 CATALOGO_DIRECCIONES = cargar_catalogo_direcciones()
+CATALOGO_DIRECCIONES_OTT = cargar_catalogo_direcciones_ott()
 CATALOGO_OTT = cargar_catalogo_ott()
 
 class AppGideon(ctk.CTk):
@@ -864,6 +865,14 @@ class AppGideon(ctk.CTk):
         )
         self.cmb_doc_ott.pack(fill="x", padx=12, pady=(0, 8))
 
+        # Ubicación
+        ctk.CTkLabel(card_form, text="Ubicación (Estado/Ciudad):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(10, 2))
+        estados_list = list(CATALOGO_DIRECCIONES_OTT.keys()) if CATALOGO_DIRECCIONES_OTT else ["Miranda", "Caracas"]
+        self.cmb_ubicacion_ott = ctk.CTkOptionMenu(
+            card_form, values=estados_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
+        )
+        self.cmb_ubicacion_ott.pack(fill="x", padx=12, pady=(0, 8))
+
         # Fila de Cantidad
         frame_cant = ctk.CTkFrame(card_form, fg_color="transparent")
         frame_cant.pack(fill="x", padx=12, pady=(10, 10))
@@ -900,8 +909,29 @@ class AppGideon(ctk.CTk):
         frame_exec_inner = ctk.CTkFrame(card_exec, fg_color="transparent")
         frame_exec_inner.pack(fill="x", padx=12, pady=8)
         
+        # Hilos OTT a la izquierda
+        ctk.CTkLabel(frame_exec_inner, text="Concurrencia:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(0, 4))
+        self.cmb_hilos_ott = ctk.CTkOptionMenu(
+            frame_exec_inner,
+            values=["1", "2", "3", "4"],
+            width=65,
+            height=28,
+            fg_color=("#e9ecef", "#25262b"),
+            button_color="#ff7800",
+            button_hover_color="#e66a00",
+            text_color=("#212529", "#ffffff")
+        )
+        self.cmb_hilos_ott.set(str(self.config_sys.get("hilos_simultaneos_ott", 2)))
+        self.cmb_hilos_ott.pack(side="left", padx=(0, 10))
+
+        # Botón Limpiar a la izquierda
+        ctk.CTkButton(
+            frame_exec_inner, text="🧹 Limpiar Cola", command=self.limpiar_cola_ott, fg_color=("#e9ecef", "#25262b"), hover_color=("#dee2e6", "#2c2e33"), text_color=("#495057", "#ced4da"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=110
+        ).pack(side="left")
+
+        # Iniciar a la derecha
         self.btn_iniciar_ott = ctk.CTkButton(
-            frame_exec_inner, text="🚀 INICIAR PROCESAMIENTO OTT", command=self.iniciar_proceso_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=30
+            frame_exec_inner, text="🚀 INICIAR PROCESAMIENTO", command=self.iniciar_proceso_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=30
         )
         self.btn_iniciar_ott.pack(side="right", fill="x", expand=True, padx=(10, 0))
         
@@ -909,10 +939,6 @@ class AppGideon(ctk.CTk):
             frame_exec_inner, text="🛑 Cancelar", command=self.cancelar_proceso_ott, fg_color=("#f8d7da", "#401c1c"), hover_color=("#f5c2c7", "#521616"), text_color=("#721c24", "#e599f7"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=100, state="disabled"
         )
         self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
-        
-        ctk.CTkButton(
-            frame_exec_inner, text="🧹 Limpiar Cola", command=self.limpiar_cola_ott, fg_color=("#e9ecef", "#25262b"), hover_color=("#dee2e6", "#2c2e33"), text_color=("#495057", "#ced4da"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=110
-        ).pack(side="left")
 
         # 3. Card de Consola de Monitoreo Pro (Sólo lectura) para OTT
         card_consola_ott = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, border_color=("#ced4da", "#2c2e33"), border_width=1, fg_color=("#ffffff", "#1a1b1e"))
@@ -986,7 +1012,8 @@ class AppGideon(ctk.CTk):
                 
                 ctk.CTkLabel(row_frame, text=f"{i}", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#ffffff"), fg_color="#ff7800", width=22, corner_radius=4).pack(side="left", padx=(6, 8), pady=10)
                 ctk.CTkLabel(row_frame, text="NATURAL", font=ctk.CTkFont(size=10, weight="bold"), text_color="#1864ab", width=55).pack(side="left")
-                ctk.CTkLabel(row_frame, text=f"{c['plan_seleccionado']} ({c['tipo_doc']})", font=ctk.CTkFont(size=11), text_color=("#495057", "#ced4da")).pack(side="left", padx=(10, 0), expand=True, anchor="w")
+                ubic = c.get('ubicacion', 'N/A')
+                ctk.CTkLabel(row_frame, text=f"{c['plan_seleccionado']} ({c['tipo_doc']}) - 📍 {ubic}", font=ctk.CTkFont(size=11), text_color=("#495057", "#ced4da")).pack(side="left", padx=(10, 0), expand=True, anchor="w")
                 
                 def make_remover(index):
                     return lambda: self.remover_de_cola_ott(index)
@@ -1018,11 +1045,12 @@ class AppGideon(ctk.CTk):
 
         tipo_doc_ott = self.cmb_doc_ott.get()
         tipo_doc_eng = "Venezuelan" if tipo_doc_ott == "Venezolano" else ("Foreigner" if tipo_doc_ott == "Extranjero" else "Passport")
+        ubicacion_ott = self.cmb_ubicacion_ott.get()
 
         for _ in range(cant):
             item = {
                 "tipo_persona": "Persona natural", 
-                "ubicacion": "Miranda",
+                "ubicacion": ubicacion_ott,
                 "plan_seleccionado": plan_ott,
                 "aplicar_promocion": False,
                 "is_ott": True,
@@ -1054,7 +1082,14 @@ class AppGideon(ctk.CTk):
             self.log_salida_ott("🛑 [SISTEMA] Solicitud de CANCELACIÓN OTT recibida...")
 
     def ejecutar_hilos_ott(self):
-        num_hilos = self.config_sys.get("hilos_simultaneos", 2)
+        try:
+            num_hilos = int(self.cmb_hilos_ott.get())
+        except ValueError:
+            num_hilos = 2
+            
+        self.config_sys["hilos_simultaneos_ott"] = num_hilos
+        guardar_configuracion(self.config_sys)
+        
         tanda_cuentas = list(self.matriz_cuentas_ott)
         with ThreadPoolExecutor(max_workers=num_hilos) as executor:
             for i, config in enumerate(tanda_cuentas, start=1):
@@ -1148,11 +1183,25 @@ class AppGideon(ctk.CTk):
         self.entry_busqueda_hist.pack(side="left", padx=5, pady=8)
         self.entry_busqueda_hist.bind("<KeyRelease>", lambda e: self.filtrar_historial())
 
+        # Filtro de Servicio
+        ctk.CTkLabel(frame_toolbar, text="Servicio:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(15, 5), pady=8)
+        self.cmb_filtro_servicio = ctk.CTkOptionMenu(
+            frame_toolbar,
+            values=["Todos los Servicios", "Solo OTT", "Solo Fibra"],
+            command=lambda v: self.filtrar_historial(),
+            width=140,
+            fg_color=("#e9ecef", "#25262b"),
+            button_color="#ff7800",
+            button_hover_color="#e66a00",
+            text_color=("#212529", "#ffffff")
+        )
+        self.cmb_filtro_servicio.pack(side="left", padx=5, pady=8)
+
         # Filtro de Estado
         ctk.CTkLabel(frame_toolbar, text="Estado:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(15, 5), pady=8)
         self.cmb_filtro_estado = ctk.CTkOptionMenu(
             frame_toolbar,
-            values=["Todos los Estados", "✅ Solo Exitosos", "❌ Solo Errores"],
+            values=["Todos los Estados", "Solo Exitosos", "Solo Errores"],
             command=lambda v: self.filtrar_historial(),
             width=160,
             fg_color=("#e9ecef", "#25262b"),
@@ -1170,7 +1219,7 @@ class AppGideon(ctk.CTk):
         
         self.btn_fecha = ctk.CTkButton(
             frame_toolbar, 
-            text="📅 Seleccionar Fecha", 
+            text="Seleccionar Fecha", 
             width=140,
             fg_color=("#e9ecef", "#2b2d31"),
             hover_color=("#dee2e6", "#343a40"),
@@ -1193,7 +1242,7 @@ class AppGideon(ctk.CTk):
         # Botón Recargar
         ctk.CTkButton(
             frame_toolbar,
-            text="🔄 Recargar",
+            text="Recargar",
             command=self.cargar_historial_reporte,
             fg_color="#ff7800",
             hover_color="#e66a00",
@@ -1212,27 +1261,29 @@ class AppGideon(ctk.CTk):
         )
         frame_tabla_container.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
-        columnas = ("fecha", "tipo", "titular", "id_cliente", "email", "ubicacion", "plan", "estado")
+        columnas = ("fecha", "servicio", "tipo", "titular", "id_cliente", "email", "ubicacion", "plan", "estado")
         self.tree_historial = ttk.Treeview(frame_tabla_container, columns=columnas, show="headings", style="Historial.Treeview", selectmode="extended")
 
         # Configurar Columnas
-        self.tree_historial.heading("fecha", text="🕒 Fecha / Hora")
-        self.tree_historial.heading("tipo", text="👤 Tipo")
-        self.tree_historial.heading("titular", text="🏷️ Titular / Empresa")
-        self.tree_historial.heading("id_cliente", text="🪪 N° Cliente")
-        self.tree_historial.heading("email", text="📧 Correo (Mailbox)")
-        self.tree_historial.heading("ubicacion", text="📍 Ubicación")
-        self.tree_historial.heading("plan", text="📦 Plan & Promo")
-        self.tree_historial.heading("estado", text="⚡ Estado")
+        self.tree_historial.heading("fecha", text="Fecha / Hora")
+        self.tree_historial.heading("servicio", text="Servicio")
+        self.tree_historial.heading("tipo", text="Tipo")
+        self.tree_historial.heading("titular", text="Titular / Empresa")
+        self.tree_historial.heading("id_cliente", text="N° Cliente")
+        self.tree_historial.heading("email", text="Correo (Mailbox)")
+        self.tree_historial.heading("ubicacion", text="Ubicación")
+        self.tree_historial.heading("plan", text="Plan & Promo")
+        self.tree_historial.heading("estado", text="Estado")
 
-        self.tree_historial.column("fecha", width=125, anchor="center")
-        self.tree_historial.column("tipo", width=120, anchor="center")
-        self.tree_historial.column("titular", width=165, anchor="w")
-        self.tree_historial.column("id_cliente", width=110, anchor="center")
-        self.tree_historial.column("email", width=200, anchor="w")
-        self.tree_historial.column("ubicacion", width=100, anchor="center")
-        self.tree_historial.column("plan", width=180, anchor="w")
-        self.tree_historial.column("estado", width=240, anchor="w")
+        self.tree_historial.column("fecha", width=140, anchor="center")
+        self.tree_historial.column("servicio", width=80, anchor="center")
+        self.tree_historial.column("tipo", width=95, anchor="center")
+        self.tree_historial.column("titular", width=220, anchor="w")
+        self.tree_historial.column("id_cliente", width=100, anchor="center")
+        self.tree_historial.column("email", width=270, anchor="w")
+        self.tree_historial.column("ubicacion", width=120, anchor="center")
+        self.tree_historial.column("plan", width=210, anchor="w")
+        self.tree_historial.column("estado", width=260, anchor="w")
 
         # Scrollbars
         scrollbar_y = ttk.Scrollbar(frame_tabla_container, orient="vertical", command=self.tree_historial.yview)
@@ -1261,13 +1312,13 @@ class AppGideon(ctk.CTk):
         def _desel_todos():
             self.tree_historial.selection_remove(self.tree_historial.get_children())
 
-        ctk.CTkButton(frame_bottom, text="☑️ Todos", width=62, command=_sel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="⬜ Ninguno", width=68, command=_desel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="📸 Evidencias", command=self.abrir_evidencia_seleccionada, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="🔁 Reenviar a la Cola", command=self.reintentar_cuenta_historial_seleccionada, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="📁 Carpeta General", command=self.abrir_carpeta_evidencias_general, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="📂 CSV Excel", command=self.abrir_archivo_csv, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="📋 Copiar ID", command=self.copiar_correo_seleccionado, fg_color=("#e8590c", "#d9480f"), hover_color=("#c92a2a", "#c92a2a"), text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Todos", width=62, command=_sel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Ninguno", width=68, command=_desel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Evidencias", command=self.abrir_evidencia_seleccionada, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Reenviar a la Cola", command=self.reintentar_cuenta_historial_seleccionada, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Carpeta General", command=self.abrir_carpeta_evidencias_general, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="CSV Excel", command=self.abrir_archivo_csv, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Copiar ID", command=self.copiar_correo_seleccionado, fg_color=("#e8590c", "#d9480f"), hover_color=("#c92a2a", "#c92a2a"), text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
 
         self.datos_historial_raw = []
         self.cargar_historial_reporte()
@@ -1287,13 +1338,19 @@ class AppGideon(ctk.CTk):
                     if filas:
                         for r in filas[1:]:
                             if len(r) >= 9:
-                                total_cuentas += 1
-                                estado = r[8].strip()
-                                if "EXITOSO" in estado.upper():
-                                    exitosas += 1
-                                else:
-                                    fallidas += 1
-                                self.datos_historial_raw.append(r)
+                                # Backward compatibility: if row is old (doesn't have Servicio at index 1)
+                                if len(r) == 12:
+                                    servicio = "OTT" if r[6].strip().upper() == "OTT" else "FTTH"
+                                    r.insert(1, servicio)
+                                
+                                if len(r) >= 10:
+                                    total_cuentas += 1
+                                    estado = r[9].strip()
+                                    if "EXITOSO" in estado.upper():
+                                        exitosas += 1
+                                    else:
+                                        fallidas += 1
+                                    self.datos_historial_raw.append(r)
             except Exception as e:
                 print(f"Error leyendo cuentas_creadas.csv: {e}")
 
@@ -1333,13 +1390,13 @@ class AppGideon(ctk.CTk):
     def aplicar_filtro_fecha(self, fecha_str):
         self.fecha_seleccionada = fecha_str
         self.filtro_fecha_activo = True
-        self.btn_fecha.configure(text=f"📅 {fecha_str}")
+        self.btn_fecha.configure(text=f"{fecha_str}")
         self.filtrar_historial()
 
     def limpiar_filtro_fecha(self):
         self.fecha_seleccionada = None
         self.filtro_fecha_activo = False
-        self.btn_fecha.configure(text="📅 Seleccionar Fecha")
+        self.btn_fecha.configure(text="Seleccionar Fecha")
         self.filtrar_historial()
 
     def resolver_tipo_cliente(self, tipo_persona, doc_rif):
@@ -1375,17 +1432,25 @@ class AppGideon(ctk.CTk):
 
         texto_busq = self.entry_busqueda_hist.get().strip().lower() if hasattr(self, 'entry_busqueda_hist') else ""
         filtro_estado = self.cmb_filtro_estado.get() if hasattr(self, 'cmb_filtro_estado') else "Todos los Estados"
+        filtro_servicio = self.cmb_filtro_servicio.get() if hasattr(self, 'cmb_filtro_servicio') else "Todos los Servicios"
 
         idx = 0
         for r in self.datos_historial_raw:
-            # r: [0:Fecha, 1:Tipo, 2:Doc, 3:Nombre, 4:Email, 5:Tel, 6:Ubic, 7:Plan, 8:Estado, 9:Total_seg, 10:Desglose, 11:ID_Cliente]
-            estado = r[8].strip() if len(r) > 8 else ""
+            # r: [0:Fecha, 1:Servicio, 2:Tipo, 3:Doc, 4:Nombre, 5:Email, 6:Tel, 7:Ubic, 8:Plan, 9:Estado, 10:Total_seg, 11:Desglose, 12:ID_Cliente]
+            estado = r[9].strip() if len(r) > 9 else ""
             es_exitoso = "EXITOSO" in estado.upper()
+            servicio_val = r[1].strip().upper() if len(r) > 1 else ""
+
+            # Filtro por servicio
+            if filtro_servicio == "Solo OTT" and servicio_val != "OTT":
+                continue
+            if filtro_servicio == "Solo Fibra" and servicio_val != "FTTH":
+                continue
 
             # Filtro por estado
-            if filtro_estado == "✅ Solo Exitosos" and not es_exitoso:
+            if filtro_estado == "Solo Exitosos" and not es_exitoso:
                 continue
-            if filtro_estado == "❌ Solo Errores" and es_exitoso:
+            if filtro_estado == "Solo Errores" and es_exitoso:
                 continue
 
             # Filtro por fecha
@@ -1401,21 +1466,23 @@ class AppGideon(ctk.CTk):
             tag_estado = "tag_exito" if es_exitoso else "tag_error"
             tag_fila = "fila_par" if idx % 2 == 0 else "fila_impar"
 
-            tipo_raw = r[1] if len(r) > 1 else ""
-            doc_raw = r[2] if len(r) > 2 else ""
+            servicio = r[1] if len(r) > 1 else ""
+            tipo_raw = r[2] if len(r) > 2 else ""
+            doc_raw = r[3] if len(r) > 3 else ""
             tipo_limpio = self.resolver_tipo_cliente(tipo_raw, doc_raw)
 
-            id_cliente = r[11] if len(r) > 11 and r[11].strip() else "-"
+            id_cliente = r[12] if len(r) > 12 and r[12].strip() else "-"
 
             valores = (
                 r[0],        # Fecha
-                tipo_limpio, # Tipo limpio del sistema (Venezuelan, Foreigner, Passport, Legal, Government, Personal Signature)
-                r[3],        # Titular / Empresa
+                servicio,    # Servicio (FTTH / OTT)
+                tipo_limpio, # Tipo limpio del sistema
+                r[4],        # Titular / Empresa
                 id_cliente,  # N° Cliente
-                r[4],        # Email
-                r[6],        # Ubicacion (sin telefono)
-                r[7],        # Plan
-                r[8]         # Estado
+                r[5],        # Email
+                r[7],        # Ubicacion (sin telefono)
+                r[8],        # Plan
+                r[9]         # Estado
             )
             self.tree_historial.insert("", "end", values=valores, tags=(tag_fila, tag_estado))
             idx += 1
@@ -1432,20 +1499,24 @@ class AppGideon(ctk.CTk):
             return
 
         fecha_hora = str(valores[0])
-        email = str(valores[4])
+        servicio = str(valores[1]).strip().upper()
+        email = str(valores[5])
         mailbox = email.split("@")[0].strip()
         fecha_solo = fecha_hora.split(" ")[0].strip()
 
+        # Determinar carpeta base según servicio
+        carpeta_base = "Evidencias_QA" if servicio == "OTT" else "Evidencias_QA_Fibra"
+
         # Buscar carpeta específica de evidencias
-        ruta_directa = os.path.join("Evidencias_QA", fecha_solo, mailbox)
+        ruta_directa = os.path.join(carpeta_base, fecha_solo, mailbox)
         if os.path.exists(ruta_directa):
             os.startfile(ruta_directa)
             return
 
         # Búsqueda recursiva si la fecha difiere
         encontrado = False
-        if os.path.exists("Evidencias_QA"):
-            for root, dirs, files in os.walk("Evidencias_QA"):
+        if os.path.exists(carpeta_base):
+            for root, dirs, files in os.walk(carpeta_base):
                 if os.path.basename(root).lower() == mailbox.lower():
                     os.startfile(root)
                     encontrado = True
@@ -1614,35 +1685,46 @@ class AppGideon(ctk.CTk):
         self.seg_tema.set(valor_defecto)
         self.seg_tema.grid(row=0, column=1, sticky="w", padx=10, pady=10)
 
-        ctk.CTkLabel(form_frame, text="Prefijo del Correo:").grid(row=1, column=0, sticky="w", pady=8)
+        ctk.CTkLabel(form_frame, text="Prefijo del Correo (Fibra):").grid(row=1, column=0, sticky="w", pady=8)
         self.entry_prefijo = ctk.CTkEntry(form_frame, width=450, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
         self.entry_prefijo.insert(0, self.config_sys.get("prefijo_email", DEFAULT_CONFIG["prefijo_email"]))
         self.entry_prefijo.grid(row=1, column=1, padx=10, pady=8)
 
-        ctk.CTkLabel(form_frame, text="Dominio del Correo:").grid(row=2, column=0, sticky="w", pady=8)
+        ctk.CTkLabel(form_frame, text="Prefijo del Correo (OTT):").grid(row=2, column=0, sticky="w", pady=8)
+        self.entry_prefijo_ott = ctk.CTkEntry(form_frame, width=450, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
+        self.entry_prefijo_ott.insert(0, self.config_sys.get("prefijo_email_ott", DEFAULT_CONFIG.get("prefijo_email_ott", "CAMBIALO_OTT")))
+        self.entry_prefijo_ott.grid(row=2, column=1, padx=10, pady=8)
+
+        ctk.CTkLabel(form_frame, text="Dominio del Correo:").grid(row=3, column=0, sticky="w", pady=8)
         self.entry_dominio = ctk.CTkEntry(form_frame, width=450, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
         self.entry_dominio.insert(0, self.config_sys.get("dominio_email", DEFAULT_CONFIG["dominio_email"]))
-        self.entry_dominio.grid(row=2, column=1, padx=10, pady=8)
+        self.entry_dominio.grid(row=3, column=1, padx=10, pady=8)
 
-        ctk.CTkLabel(form_frame, text="Usuario de Login:").grid(row=3, column=0, sticky="w", pady=8)
+        ctk.CTkLabel(form_frame, text="Usuario de Login:").grid(row=4, column=0, sticky="w", pady=8)
         self.entry_usuario = ctk.CTkEntry(form_frame, width=450, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
         self.entry_usuario.insert(0, self.config_sys.get("usuario_login", DEFAULT_CONFIG["usuario_login"]))
-        self.entry_usuario.grid(row=3, column=1, padx=10, pady=8)
+        self.entry_usuario.grid(row=4, column=1, padx=10, pady=8)
 
-        ctk.CTkLabel(form_frame, text="Contraseña de Login:").grid(row=4, column=0, sticky="w", pady=8)
+        ctk.CTkLabel(form_frame, text="Contraseña de Login:").grid(row=5, column=0, sticky="w", pady=8)
         self.entry_password = ctk.CTkEntry(form_frame, width=450, show="*", fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
         self.entry_password.insert(0, self.config_sys.get("password_login", DEFAULT_CONFIG["password_login"]))
-        self.entry_password.grid(row=4, column=1, padx=10, pady=8)
+        self.entry_password.grid(row=5, column=1, padx=10, pady=8)
 
         # Correlativo actual
-        ctk.CTkLabel(form_frame, text="Contador de Correo Actual:").grid(row=5, column=0, sticky="w", pady=8)
-        correlativo_actual = obtener_siguiente_correlativo() - 1
+        ctk.CTkLabel(form_frame, text="Contador de Correo Actual (Fibra):").grid(row=6, column=0, sticky="w", pady=8)
+        correlativo_actual = leer_correlativo_actual()
         self.entry_correlativo = ctk.CTkEntry(form_frame, width=200, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
         self.entry_correlativo.insert(0, str(correlativo_actual))
-        self.entry_correlativo.grid(row=5, column=1, sticky="w", padx=10, pady=8)
+        self.entry_correlativo.grid(row=6, column=1, sticky="w", padx=10, pady=8)
+
+        ctk.CTkLabel(form_frame, text="Contador de Correo Actual (OTT):").grid(row=7, column=0, sticky="w", pady=8)
+        correlativo_actual_ott = leer_correlativo_actual("contador_email_ott.txt")
+        self.entry_correlativo_ott = ctk.CTkEntry(form_frame, width=200, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"))
+        self.entry_correlativo_ott.insert(0, str(correlativo_actual_ott))
+        self.entry_correlativo_ott.grid(row=7, column=1, sticky="w", padx=10, pady=8)
 
         # 6. Modo de Ejecución
-        ctk.CTkLabel(form_frame, text="Modo de Ejecución:", font=ctk.CTkFont(weight="bold")).grid(row=6, column=0, sticky="w", pady=10)
+        ctk.CTkLabel(form_frame, text="Modo de Ejecución:", font=ctk.CTkFont(weight="bold")).grid(row=8, column=0, sticky="w", pady=10)
         modo_actual = self.config_sys.get("modo_ejecucion", "completo")
         val_modo_inicial = "✍️ Manual (Hasta Paso 3)" if modo_actual == "hasta_paso_3" else "🚀 Completa (Paso 0 al 5)"
         
@@ -1658,7 +1740,7 @@ class AppGideon(ctk.CTk):
             height=32
         )
         self.seg_modo_cfg.set(val_modo_inicial)
-        self.seg_modo_cfg.grid(row=6, column=1, sticky="w", padx=10, pady=10)
+        self.seg_modo_cfg.grid(row=8, column=1, sticky="w", padx=10, pady=10)
 
         frame_actions_cfg = ctk.CTkFrame(frame_box, fg_color="transparent")
         frame_actions_cfg.pack(anchor="w", padx=24, pady=25)
@@ -1758,6 +1840,7 @@ class AppGideon(ctk.CTk):
 
     def guardar_ajustes_ui(self):
         self.config_sys["prefijo_email"] = self.entry_prefijo.get().strip()
+        self.config_sys["prefijo_email_ott"] = self.entry_prefijo_ott.get().strip()
         self.config_sys["dominio_email"] = self.entry_dominio.get().strip()
         self.config_sys["usuario_login"] = self.entry_usuario.get().strip()
         self.config_sys["password_login"] = self.entry_password.get().strip()
@@ -1772,6 +1855,12 @@ class AppGideon(ctk.CTk):
         try:
             nuevo_corr = int(self.entry_correlativo.get().strip())
             actualizar_correlativo_manual(nuevo_corr)
+        except ValueError:
+            pass
+
+        try:
+            nuevo_corr_ott = int(self.entry_correlativo_ott.get().strip())
+            actualizar_correlativo_manual(nuevo_corr_ott, "contador_email_ott.txt")
         except ValueError:
             pass
 
