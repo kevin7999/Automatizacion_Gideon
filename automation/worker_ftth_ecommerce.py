@@ -278,67 +278,98 @@ def _safe_fill_obligatorio(page, selector_list, valor, campo_nombre, id_hilo, lo
 # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 def _obtener_otp_maildrop_ecom(email_base, correlativo, p_context, id_hilo, log_callback, cancel_event=None):
     """
-    Abre una pestaÃÂ±a de Maildrop y busca el cÃÂ³digo OTP de 6 dÃÂ­gitos.
-    15 reintentos con espera de 3.5s entre cada uno (~52s de ventana mÃÂ¡xima).
-    Retorna el cÃÂ³digo como string o None si agota el tiempo.
+    Abre una pestana de Maildrop y busca el codigo OTP de 6 digitos.
+    Mantiene la pestana abierta durante toda la busqueda (mas eficiente).
+    15 reintentos con espera de 5s entre cada uno (~75s de ventana maxima).
+    Retorna el codigo como string o None si agota el tiempo.
     """
     mailbox_name = f"{email_base}{correlativo}"
+    url_mailbox = f"https://maildrop.cc/inbox/?mailbox={mailbox_name}"
+    log_callback(f"[Hilo {id_hilo}] Abriendo Maildrop: {url_mailbox}")
+
     page_mail = p_context.new_page()
     codigo = None
     try:
-        page_mail.goto(f"https://maildrop.cc/inbox/?mailbox={mailbox_name}", timeout=60000)
+        page_mail.goto(url_mailbox, timeout=60000)
+        try:
+            page_mail.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:
+            pass
 
         for intento in range(15):
             if cancel_event and cancel_event.is_set():
-                log_callback(f"[Hilo {id_hilo}] Ã°Å¸âºâ BÃÂºsqueda OTP cancelada.")
+                log_callback(f"[Hilo {id_hilo}] OTP cancelado.")
                 break
 
-            page_mail.wait_for_timeout(3500)
+            log_callback(f"[Hilo {id_hilo}] Maildrop - intento {intento + 1}/15 en '{mailbox_name}'...")
 
-            # Intentar abrir el primer correo
-            primer_correo = page_mail.locator("div[class*='truncate'], a[href*='/inbox/'], li[class*='message']").first
-            if primer_correo.is_visible():
-                try:
-                    primer_correo.click()
-                    page_mail.wait_for_timeout(2000)
-                except Exception:
-                    pass
-
-            # Raspar texto de la pÃÂ¡gina y frames
+            # Raspar texto completo de la pagina
             texto = ""
             try:
                 texto += page_mail.inner_text("body")
+            except Exception:
+                pass
+            try:
                 texto += " " + page_mail.content()
             except Exception:
                 pass
             for frame in page_mail.frames:
                 try:
                     texto += " " + frame.inner_text("body")
+                except Exception:
+                    pass
+                try:
                     texto += " " + frame.content()
                 except Exception:
                     pass
 
-            # Validar formato 6 dÃÂ­gitos
+            # Intentar abrir el primer correo si el inbox no esta vacio
+            try:
+                primer_correo = page_mail.locator(
+                    "a[href*='/message/'], div[class*='Message'], li[class*='message'], "
+                    "div[class*='message'], a[class*='message']"
+                ).first
+                if primer_correo.is_visible():
+                    log_callback(f"[Hilo {id_hilo}] Email detectado en inbox - abriendo...")
+                    primer_correo.click()
+                    page_mail.wait_for_timeout(2000)
+                    try:
+                        texto += " " + page_mail.inner_text("body")
+                        texto += " " + page_mail.content()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            # Validar formato exacto 6 digitos
             match = re.search(r'(?<!\d)(\d{6})(?!\d)', texto)
             if match:
                 codigo = match.group(1)
-                log_callback(f"[Hilo {id_hilo}] Ã¢Åâ¦ OTP encontrado: {codigo} (intento {intento + 1})")
+                log_callback(f"[Hilo {id_hilo}] OTP encontrado: {codigo} (intento {intento + 1})")
                 break
 
-            log_callback(f"[Hilo {id_hilo}] Ã¢ÂÂ³ OTP no encontrado, reintentando ({intento + 1}/15)...")
-            page_mail.reload()
+            # Log de diagnostico con extracto del inbox
+            extracto = texto[:150].replace("\n", " ").replace("\r", "").strip()
+            log_callback(f"[Hilo {id_hilo}] Sin OTP. Inbox: '{extracto[:100]}'")
+
+            # Esperar y refrescar
+            page_mail.wait_for_timeout(5000)
+            try:
+                page_mail.reload()
+                page_mail.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
 
     except Exception as e:
-        log_callback(f"[Hilo {id_hilo}] Ã¢Å¡Â Ã¯Â¸Â Error accediendo a Maildrop: {e}")
+        log_callback(f"[Hilo {id_hilo}] Error accediendo a Maildrop: {e}")
     finally:
-        page_mail.close()
+        try:
+            page_mail.close()
+        except Exception:
+            pass
 
     return codigo
 
-
-# Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-# HELPER: Inyectar valor en un <select> nativo de React sin romper el estado
-# Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 def _react_select(page, select_name, text_match):
     """
     Selecciona una opciÃÂ³n en un <select> de React comparando texto parcial
