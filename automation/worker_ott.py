@@ -123,7 +123,7 @@ def crear_cuenta_ott(
         timer.stop_step()
     except Exception as e:
         timer.stop_step("Error")
-        err_msg = formatear_error_amigable(e, "preparando datos OTT")
+        err_msg = formatear_error_amigable("preparando datos OTT", e)
         log_callback(f"[Hilo {id_hilo}] ❌ Error: {err_msg}")
         update_kpi_callback(fallo=1)
         return {"exito": False, "error": err_msg, "email": ""}
@@ -564,7 +564,7 @@ def crear_cuenta_ott(
         except Exception as e:
             if timer.current_step:
                 timer.stop_step("Error")
-            err_msg = formatear_error_amigable(e, timer.current_step if timer.current_step else "Flujo OTT")
+            err_msg = formatear_error_amigable(timer.current_step if timer.current_step else "Flujo OTT", e)
             log_callback(f"[Hilo {id_hilo}] ❌ Error en {timer.current_step}: {err_msg}")
             
             if browser:

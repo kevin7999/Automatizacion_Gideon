@@ -424,7 +424,7 @@ def ejecutar_worker_ftth_ecommerce(
 
     except Exception as e:
         timer.stop_step("Error")
-        err_msg = formatear_error_amigable(e, "preparando datos eCommerce")
+        err_msg = formatear_error_amigable("preparando datos eCommerce", e)
         log_callback(f"[Hilo {id_hilo}] Ã¢ÂÅ {err_msg}")
         update_kpi_callback(fallo=1)
         return {"exito": False, "error": err_msg, "email": ""}
@@ -1093,7 +1093,7 @@ def ejecutar_worker_ftth_ecommerce(
         except Exception as e:
             if timer.current_step:
                 timer.stop_step("Error")
-            err_msg = formatear_error_amigable(e, timer.current_step or "Flujo eCommerce FTTH")
+            err_msg = formatear_error_amigable(timer.current_step or "Flujo eCommerce FTTH", e)
             log_callback(f"[Hilo {id_hilo}] Ã¢ÂÅ Error en {timer.current_step}: {err_msg}")
 
             # Captura de debug
