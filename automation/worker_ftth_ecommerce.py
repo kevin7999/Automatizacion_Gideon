@@ -810,9 +810,9 @@ def ejecutar_worker_ftth_ecommerce(
             # ── CONTRATO PASO 2/4: OTP ──
             timer.start_step("F3: Contrato P2/4 OTP")
             try:
-                page.wait_for_selector(
-                    "text=/Verificaci.n de correo electr.nico/i, text=/ingresa el c.digo enviado/i, input[placeholder='0']",
-                    timeout=60000
+                # Esperamos específicamente por las cajas del OTP
+                page.locator("input[placeholder='0'], input[name='otp.0'], input[name='otp0']").first.wait_for(
+                    state="visible", timeout=60000
                 )
             except Exception:
                 os.makedirs(carpeta_evidencias, exist_ok=True)
