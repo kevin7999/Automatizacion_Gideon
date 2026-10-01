@@ -922,13 +922,20 @@ def ejecutar_worker_ftth_ecommerce(
             # Estrategia: llenar de abajo hacia arriba para que los selects dependientes
             # no rechacen el valor por carecer de padre.
 
-            # Dato base del catÃÂ¡logo
-            estado_val  = dir_data.get("state", "Miranda")
-            ciudad_val  = dir_data.get("city", "Caracas")
-            muni_val    = dir_data.get("municipality", "Chacao")
-            zona_val    = dir_data.get("neighbourhood", "Urb. El Rosal")
-            cp_val      = dir_data.get("postal_code", "1060")
-            edificio_val = dir_data.get("building_house", "Torre Directv")
+            # Datos del catalogo OTT (campos exactos para selects del contrato)
+            dir_ott = CATALOGO_DIRECCIONES_OTT.get(ubicacion)
+            if not dir_ott:
+                dir_ott = list(CATALOGO_DIRECCIONES_OTT.values())[0]
+
+            estado_val   = dir_ott.get("state", "distrito capital")
+            ciudad_val   = dir_ott.get("city", "caracas")
+            muni_val     = dir_ott.get("municipality", "libertador")
+            zona_val     = dir_ott.get("zone", "chacaito")
+            cp_val       = dir_ott.get("postal_code", "1060")
+            tipo_calle   = dir_ott.get("street_type", "avenida")
+            nombre_calle = dir_ott.get("street_name", "Av Venezuela")
+            edificio_val = dir_ott.get("building_name", "torre directv")
+            num_casa_val = dir_ott.get("house_number", "533")
 
             # Llenar Estado primero (cabeza de la cadena de dependencias)
             _react_select(page, "installationAddress.state", estado_val)
@@ -958,7 +965,7 @@ def ejecutar_worker_ftth_ecommerce(
 
             # Tipo de calle
             try:
-                _react_select(page, "installationAddress.streetType", "Avenida")
+                _react_select(page, "installationAddress.streetType", tipo_calle)
             except Exception:
                 pass
 
@@ -974,9 +981,9 @@ def ejecutar_worker_ftth_ecommerce(
                     except Exception:
                         continue
 
-            rellenar_input(["avenida o calle", "calle", "Avenida"], edificio_val.split(",")[0] if "," in edificio_val else "AVENIDA VENEZUELA")
+            rellenar_input(["avenida o calle", "calle", "Avenida", "avenida"], nombre_calle)
             rellenar_input(["edificio", "casa", "nombre del edificio", "Edificio"], edificio_val)
-            rellenar_input(["nÃÂºmero de casa", "nÃÂ° de casa", "apartamento", "NÃÂ°"], "1")
+            rellenar_input(["numero de casa", "n de casa", "apartamento"], num_casa_val)
 
             page.wait_for_timeout(1000)
             guardar_evidencia(timer.current_step)
