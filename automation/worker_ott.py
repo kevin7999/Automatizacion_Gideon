@@ -22,13 +22,13 @@ def obtener_codigo_otp_maildrop(email_base, correlativo, p_context, cancel_event
         page_maildrop.goto(f"https://maildrop.cc/inbox/?mailbox={mailbox_name}", timeout=60000)
         
         codigo = None
-        for i in range(5):
+        for i in range(15):
             if cancel_event and cancel_event.is_set():
                 break
             page_maildrop.wait_for_timeout(3500)
             
             # Hacer clic en el primer correo de la lista (cualquiera que haya llegado)
-            primer_correo = page_maildrop.locator("div[class*='truncate']").first
+            primer_correo = page_maildrop.locator("div[class*='truncate'], a[href*='/inbox/'], li[class*='message']").first
             if primer_correo.is_visible():
                 try:
                     primer_correo.click()
@@ -40,17 +40,19 @@ def obtener_codigo_otp_maildrop(email_base, correlativo, p_context, cancel_event
             texto_visible = ""
             try:
                 texto_visible += page_maildrop.inner_text("body")
+                texto_visible += " " + page_maildrop.content()
             except:
                 pass
                 
             for frame in page_maildrop.frames:
                 try:
                     texto_visible += " " + frame.inner_text("body")
+                    texto_visible += " " + frame.content()
                 except:
                     pass
             
             # Buscar 6 dígitos aislados (ej. 727633)
-            match = re.search(r'\b(\d{6})\b', texto_visible)
+            match = re.search(r'(?<!\d)(\d{6})(?!\d)', texto_visible)
             if match:
                 codigo = match.group(1)
                 break
@@ -114,7 +116,7 @@ def crear_cuenta_ott(
         elif tipo_doc == "Government": tipo_cliente_str = "Gubernamental"
         
         fecha_hoy = time.strftime("%Y-%m-%d")
-        carpeta_evidencias = os.path.join(os.getcwd(), "Evidencias_QA", fecha_hoy, mailbox_name)
+        carpeta_evidencias = os.path.join(os.getcwd(), "Evidencias_QA_OTT", fecha_hoy, mailbox_name)
         
         log_callback(f"[Hilo {id_hilo}] 📝 OTT: {nombre} {apellido} | {cedula} | {email_generado} | Plan: {plan_ott}")
         if "page" in locals(): guardar_evidencia(timer.current_step)
