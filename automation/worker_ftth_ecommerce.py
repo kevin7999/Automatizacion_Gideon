@@ -278,11 +278,22 @@ def _safe_fill_obligatorio(page, selector_list, valor, campo_nombre, id_hilo, lo
 # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 def _obtener_otp_maildrop_ecom(email_base, correlativo, p_context, id_hilo, log_callback, cancel_event=None):
     """
-    Abre una pestana de Maildrop y busca el codigo OTP de 6 digitos.
-    Mantiene la pestana abierta durante toda la busqueda (mas eficiente).
-    15 reintentos con espera de 5s entre cada uno (~75s de ventana maxima).
-    Retorna el codigo como string o None si agota el tiempo.
+    Abre una pestana de Maildrop y extrae el OTP de 6 digitos.
+    Estrategia de extraccion en 2 fases:
+      1. Contextual: busca el numero cerca de palabras clave (codigo, OTP, verificacion).
+      2. Fallback: primer 6-digit en inner_text del email abierto (nunca en HTML crudo).
+    Mantiene la pestana abierta y refresca en cada reintento.
     """
+    # Patron contextual: OTP rodeado de palabras clave del email del CRM
+    PATRON_CONTEXTUAL = re.compile(
+        r'(?:c[o\u00f3]digo|code|verificaci[o\u00f3]n|verification|otp|token|clave|pin)'
+        r'.{0,120}(\d{6})'
+        r'|'
+        r'(\d{6})'
+        r'.{0,120}(?:c[o\u00f3]digo|code|verificaci[o\u00f3]n|verification|otp|token|clave|pin)',
+        re.IGNORECASE | re.DOTALL
+    )
+
     mailbox_name = f"{email_base}{correlativo}"
     url_mailbox = f"https://maildrop.cc/inbox/?mailbox={mailbox_name}"
     log_callback(f"[Hilo {id_hilo}] Abriendo Maildrop: {url_mailbox}")
@@ -303,56 +314,52 @@ def _obtener_otp_maildrop_ecom(email_base, correlativo, p_context, id_hilo, log_
 
             log_callback(f"[Hilo {id_hilo}] Maildrop - intento {intento + 1}/15 en '{mailbox_name}'...")
 
-            # Raspar texto completo de la pagina
-            texto = ""
+            # ── PASO 1: Intentar abrir el primer correo ───────────────────────────
+            email_abierto = False
             try:
-                texto += page_mail.inner_text("body")
+                primer_correo = page_mail.locator(
+                    "a[href*='/message/'], div[class*='Message'], li[class*='message'], "
+                    "div[class*='message'], a[class*='message'], article, [role='listitem']"
+                ).first
+                if primer_correo.is_visible():
+                    log_callback(f"[Hilo {id_hilo}] Email detectado - abriendo...")
+                    primer_correo.click()
+                    page_mail.wait_for_timeout(2000)
+                    email_abierto = True
             except Exception:
                 pass
+
+            # ── PASO 2: Raspar SOLO inner_text (nunca HTML crudo) ─────────────────
+            texto_visible = ""
             try:
-                texto += " " + page_mail.content()
+                texto_visible = page_mail.inner_text("body")
             except Exception:
                 pass
             for frame in page_mail.frames:
                 try:
-                    texto += " " + frame.inner_text("body")
-                except Exception:
-                    pass
-                try:
-                    texto += " " + frame.content()
+                    texto_visible += " " + frame.inner_text("body")
                 except Exception:
                     pass
 
-            # Intentar abrir el primer correo si el inbox no esta vacio
-            try:
-                primer_correo = page_mail.locator(
-                    "a[href*='/message/'], div[class*='Message'], li[class*='message'], "
-                    "div[class*='message'], a[class*='message']"
-                ).first
-                if primer_correo.is_visible():
-                    log_callback(f"[Hilo {id_hilo}] Email detectado en inbox - abriendo...")
-                    primer_correo.click()
-                    page_mail.wait_for_timeout(2000)
-                    try:
-                        texto += " " + page_mail.inner_text("body")
-                        texto += " " + page_mail.content()
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-            # Validar formato exacto 6 digitos
-            match = re.search(r'(?<!\d)(\d{6})(?!\d)', texto)
-            if match:
-                codigo = match.group(1)
-                log_callback(f"[Hilo {id_hilo}] OTP encontrado: {codigo} (intento {intento + 1})")
+            # ── PASO 3: Busqueda contextual (alta precision, sin falsos positivos) ─
+            match_ctx = PATRON_CONTEXTUAL.search(texto_visible)
+            if match_ctx:
+                codigo = match_ctx.group(1) or match_ctx.group(2)
+                log_callback(f"[Hilo {id_hilo}] OTP (contextual): {codigo} (intento {intento + 1})")
                 break
 
-            # Log de diagnostico con extracto del inbox
-            extracto = texto[:150].replace("\n", " ").replace("\r", "").strip()
-            log_callback(f"[Hilo {id_hilo}] Sin OTP. Inbox: '{extracto[:100]}'")
+            # ── PASO 4: Fallback — solo si el email esta abierto ─────────────────
+            if email_abierto:
+                match_fb = re.search(r'(?<!\d)(\d{6})(?!\d)', texto_visible)
+                if match_fb:
+                    codigo = match_fb.group(1)
+                    log_callback(f"[Hilo {id_hilo}] OTP (fallback): {codigo} (intento {intento + 1})")
+                    break
 
-            # Esperar y refrescar
+            # Diagnostico: que hay en el inbox
+            extracto = texto_visible[:200].replace("\n", " ").replace("\r", "").strip()
+            log_callback(f"[Hilo {id_hilo}] Sin OTP. Texto: '{extracto[:120]}'")
+
             page_mail.wait_for_timeout(5000)
             try:
                 page_mail.reload()
