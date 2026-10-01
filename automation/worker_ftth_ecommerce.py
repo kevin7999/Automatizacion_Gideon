@@ -812,7 +812,7 @@ def ejecutar_worker_ftth_ecommerce(
             try:
                 page.wait_for_selector(
                     "text=/Verificaci.n de correo electr.nico/i, text=/ingresa el c.digo enviado/i, input[placeholder='0']",
-                    timeout=30000
+                    timeout=60000
                 )
             except Exception:
                 os.makedirs(carpeta_evidencias, exist_ok=True)
@@ -848,24 +848,21 @@ def ejecutar_worker_ftth_ecommerce(
                 raise Exception("Tiempo agotado: no se recibió el OTP en Maildrop.")
 
             try:
-                cajas = page.locator("input[placeholder='0'], input[name^='otp.'], input[maxlength='1']")
-                if cajas.count() >= 6:
-                    for i, digito in enumerate(codigo_otp):
-                        caja = cajas.nth(i)
-                        caja.click(force=True)
-                        caja.press_sequentially(digito, delay=50)
-                    cajas.nth(5).blur()
-                else:
-                    modal_otp = page.locator("div").filter(has_text=re.compile(r"Verificaci.n de correo electr.nico", re.I)).last
-                    inputs_modal = modal_otp.locator("input")
-                    if inputs_modal.count() >= 6:
-                        for i, digito in enumerate(codigo_otp):
-                            inputs_modal.nth(i).click(force=True)
-                            inputs_modal.nth(i).press_sequentially(digito, delay=50)
-                        inputs_modal.nth(5).blur()
-                    else:
-                        raise Exception("No se encontraron 6 casillas individuales.")
+                # Localizar inputs de OTP de forma más estricta (excluyendo hidden/disabled si es posible)
+                # O intentamos la inyección directa sugerida en la guía táctica.
+                for i, digito in enumerate(codigo_otp):
+                    # Escribimos explícitamente en otp.0, otp.1, otp.2 o su equivalente react
+                    caja = page.locator(f"input[name='otp.{i}'], input[name='otp{i}'], input[aria-label*='{i+1}']").first
+                    if i == 0:
+                        caja.wait_for(state="visible", timeout=5000)
+                    caja.fill("", force=True)
+                    caja.press_sequentially(digito, delay=50)
+                
+                # Desenfocar la última caja
+                caja_final = page.locator("input[name='otp.5'], input[name='otp5'], input[aria-label*='6']").first
+                caja_final.blur()
             except Exception:
+                # Fallback modal genérico
                 campo_otp_unico = page.locator(
                     "input[placeholder*='código'], input[placeholder*='Código'], input[type='number'], input[name*='otp']"
                 ).first

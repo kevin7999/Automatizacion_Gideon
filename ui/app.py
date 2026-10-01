@@ -24,6 +24,7 @@ from core.correlativos import (
 from core.generadores import limpiar_texto_crm
 from automation.worker import crear_cuenta_individual
 from automation.worker_ott import crear_cuenta_ott
+from automation.worker_ftth_ecommerce import ejecutar_worker_ftth_ecommerce
 
 CATALOGO_PLANES = cargar_catalogo_planes()
 CATALOGO_DIRECCIONES = cargar_catalogo_direcciones()
@@ -61,12 +62,18 @@ class AppGideon(ctk.CTk):
 
         self.matriz_cuentas = []
         self.matriz_cuentas_ott = []
-        
+        self.matriz_cuentas_ecom = []
+
         self.fallidas_tanda_actual = []
         self.fallidas_tanda_actual_ott = []
-        
+        self.fallidas_tanda_actual_ecom = []
+
         self.cancel_event = threading.Event()
         self.cancel_event_ott = threading.Event()
+        self.cancel_event_ecom = threading.Event()
+
+        # Modo activo de la pestaña eCommerce: "OTT" o "FTTH"
+        self.modo_ecommerce = "OTT"
 
         # Métricas KPIs
         self.kpi_total = 0
@@ -93,7 +100,7 @@ class AppGideon(ctk.CTk):
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
 
         self.tab_control = self.tabview.add("Centro de Control")
-        self.tab_ott = self.tabview.add("Control OTT")
+        self.tab_ott = self.tabview.add("eCommerce B2C")
         self.tab_reportes = self.tabview.add("Historial & Reportes")
         self.tab_config = self.tabview.add("Configuración")
 
@@ -847,52 +854,96 @@ class AppGideon(ctk.CTk):
 
         hdr_form = ctk.CTkFrame(card_form, fg_color="transparent")
         hdr_form.pack(fill="x", padx=12, pady=(10, 8))
-        ctk.CTkLabel(hdr_form, text="🎯 CONFIGURACIÓN PLAN OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#d9480f", "#ff922b")).pack(side="left")
+        ctk.CTkLabel(hdr_form, text="📡 MODO DE CREACIÓN", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#d9480f", "#ff922b")).pack(side="left")
 
-        # Botón de Actualizar Catálogo OTT en el header
         ctk.CTkButton(
             hdr_form, text="🔄 Actualizar", width=80, height=24, command=self.recargar_catalogo_ott_ui,
             fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=10, weight="bold")
         ).pack(side="right")
 
-        # Plan OTT
-        frame_plan_lbl = ctk.CTkFrame(card_form, fg_color="transparent")
+        # ── SELECTOR DE MODO: OTT / FTTH ──────────────────────────────────
+        self.seg_modo_ecom = ctk.CTkSegmentedButton(
+            card_form,
+            values=["📺  OTT Streaming", "🌐  FTTH Fibra"],
+            command=self._cambiar_modo_ecommerce,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            selected_color="#ff7800",
+            selected_hover_color="#e66a00",
+            unselected_color=("#e9ecef", "#25262b"),
+            text_color=("#212529", "#ffffff"),
+            height=32
+        )
+        self.seg_modo_ecom.set("📺  OTT Streaming")
+        self.seg_modo_ecom.pack(fill="x", padx=12, pady=(0, 10))
+
+        # ── PANEL OTT (visible cuando modo = OTT) ───────────────────────
+        self.frame_panel_ott = ctk.CTkFrame(card_form, fg_color="transparent")
+        self.frame_panel_ott.pack(fill="x")
+
+        frame_plan_lbl = ctk.CTkFrame(self.frame_panel_ott, fg_color="transparent")
         frame_plan_lbl.pack(fill="x", padx=12, pady=(2, 2))
         ctk.CTkLabel(frame_plan_lbl, text="Seleccione el Plan OTT:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
         ctk.CTkButton(
             frame_plan_lbl, text="📦 CSV Planes", width=70, height=20, command=self.abrir_csv_catalogo_ott,
             fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=9, weight="bold")
         ).pack(side="right")
-        
+
         planes_ott_list = list(CATALOGO_OTT.keys()) if CATALOGO_OTT else ["Litesports", "Gold", "Platino", "Diamante"]
         self.cmb_plan_ott = ctk.CTkOptionMenu(
-            card_form, values=planes_ott_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
+            self.frame_panel_ott, values=planes_ott_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
         )
         self.cmb_plan_ott.pack(fill="x", padx=12, pady=(0, 8))
 
-        # Tipo de documento
-        ctk.CTkLabel(card_form, text="Tipo de documento (Cliente Natural):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(10, 2))
+        ctk.CTkLabel(self.frame_panel_ott, text="Tipo de documento (Cliente Natural):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(anchor="w", padx=12, pady=(10, 2))
         self.cmb_doc_ott = ctk.CTkOptionMenu(
-            card_form, values=["Venezolano", "Extranjero", "Pasaporte"], fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
+            self.frame_panel_ott, values=["Venezolano", "Extranjero", "Pasaporte"], fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
         )
         self.cmb_doc_ott.pack(fill="x", padx=12, pady=(0, 8))
 
-        # Ubicación
-        frame_ubi_lbl = ctk.CTkFrame(card_form, fg_color="transparent")
+        # ── PANEL FTTH eCOMMERCE (oculto por defecto) ────────────────────
+        self.frame_panel_ftth_ecom = ctk.CTkFrame(card_form, fg_color="transparent")
+        # No se hace pack aquí: se activa con _cambiar_modo_ecommerce()
+
+        frame_plan_ftth_lbl = ctk.CTkFrame(self.frame_panel_ftth_ecom, fg_color="transparent")
+        frame_plan_ftth_lbl.pack(fill="x", padx=12, pady=(2, 2))
+        ctk.CTkLabel(frame_plan_ftth_lbl, text="Seleccione el Plan FTTH:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+
+        planes_ecom_list = list(CATALOGO_PLANES.keys()) if CATALOGO_PLANES else ["Compra: 400 mbps + Gold"]
+        self.cmb_plan_ecom = ctk.CTkOptionMenu(
+            self.frame_panel_ftth_ecom, values=planes_ecom_list,
+            fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00",
+            text_color=("#212529", "#ffffff"), height=30
+        )
+        self.cmb_plan_ecom.pack(fill="x", padx=12, pady=(0, 8))
+
+        frame_ubi_ftth_lbl = ctk.CTkFrame(self.frame_panel_ftth_ecom, fg_color="transparent")
+        frame_ubi_ftth_lbl.pack(fill="x", padx=12, pady=(6, 2))
+        ctk.CTkLabel(frame_ubi_ftth_lbl, text="Ubicación (con cobertura):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+
+        ubicaciones_ecom_list = list(CATALOGO_DIRECCIONES.keys()) if CATALOGO_DIRECCIONES else ["Caracas"]
+        self.cmb_ubicacion_ecom = ctk.CTkOptionMenu(
+            self.frame_panel_ftth_ecom, values=ubicaciones_ecom_list,
+            fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00",
+            text_color=("#212529", "#ffffff"), height=30
+        )
+        self.cmb_ubicacion_ecom.pack(fill="x", padx=12, pady=(0, 8))
+
+        # Ubicación OTT dentro del panel OTT
+        frame_ubi_lbl = ctk.CTkFrame(self.frame_panel_ott, fg_color="transparent")
         frame_ubi_lbl.pack(fill="x", padx=12, pady=(10, 2))
         ctk.CTkLabel(frame_ubi_lbl, text="Ubicación (Estado/Ciudad):", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
         ctk.CTkButton(
             frame_ubi_lbl, text="📍 CSV Ubicaciones", width=90, height=20, command=self.abrir_csv_direcciones_ott,
             fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=9, weight="bold")
         ).pack(side="right")
-        
+
         estados_list = list(CATALOGO_DIRECCIONES_OTT.keys()) if CATALOGO_DIRECCIONES_OTT else ["Miranda", "Caracas"]
         self.cmb_ubicacion_ott = ctk.CTkOptionMenu(
-            card_form, values=estados_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
+            self.frame_panel_ott, values=estados_list, fg_color=("#e9ecef", "#25262b"), button_color="#ff7800", button_hover_color="#e66a00", text_color=("#212529", "#ffffff"), height=30
         )
         self.cmb_ubicacion_ott.pack(fill="x", padx=12, pady=(0, 8))
 
-        # Fila de Cantidad
+        # Fila de Cantidad (compartida)
         frame_cant = ctk.CTkFrame(card_form, fg_color="transparent")
         frame_cant.pack(fill="x", padx=12, pady=(10, 10))
         ctk.CTkLabel(frame_cant, text="Cantidad de cuentas:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
@@ -900,9 +951,11 @@ class AppGideon(ctk.CTk):
         self.spn_cantidad_ott.insert(0, "1")
         self.spn_cantidad_ott.pack(side="right")
 
-        # Botón Agregar
+        # Botón Agregar (redirige según el modo activo)
         ctk.CTkButton(
-            card_form, text="➕ Agregar a la Cola OTT", command=self.agregar_lote_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=34
+            card_form, text="➕ Agregar a la Cola", command=self.agregar_lote_ecommerce_dispatch,
+            fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff",
+            font=ctk.CTkFont(size=13, weight="bold"), height=34
         ).pack(fill="x", padx=12, pady=(0, 12))
 
         # --- PANEL DERECHO: COLA, EJECUCIÓN Y CONSOLA OTT ---
@@ -914,7 +967,7 @@ class AppGideon(ctk.CTk):
 
         frame_cola_hdr = ctk.CTkFrame(card_cola, fg_color="transparent")
         frame_cola_hdr.pack(fill="x", padx=12, pady=(8, 4))
-        ctk.CTkLabel(frame_cola_hdr, text="📋 Cola de Cuentas OTT", font=ctk.CTkFont(size=13, weight="bold"), text_color=("#d9480f", "#ff7800")).pack(side="left")
+        ctk.CTkLabel(frame_cola_hdr, text="📋 Cola de Cuentas eCommerce", font=ctk.CTkFont(size=13, weight="bold"), text_color=("#d9480f", "#ff7800")).pack(side="left")
         self.lbl_cola_badge_ott = ctk.CTkLabel(frame_cola_hdr, text="0 en espera", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#495057", "#adb5bd"))
         self.lbl_cola_badge_ott.pack(side="right")
 
@@ -948,14 +1001,21 @@ class AppGideon(ctk.CTk):
             frame_exec_inner, text="🧹 Limpiar Cola", command=self.limpiar_cola_ott, fg_color=("#e9ecef", "#25262b"), hover_color=("#dee2e6", "#2c2e33"), text_color=("#495057", "#ced4da"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=110
         ).pack(side="left")
 
-        # Iniciar a la derecha
+        # Iniciar a la derecha (despacha al worker correcto según el modo)
         self.btn_iniciar_ott = ctk.CTkButton(
-            frame_exec_inner, text="🚀 INICIAR PROCESAMIENTO", command=self.iniciar_proceso_ott, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), height=30
+            frame_exec_inner, text="🚀 INICIAR PROCESAMIENTO",
+            command=self.iniciar_proceso_ecommerce_dispatch,
+            fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff",
+            font=ctk.CTkFont(size=13, weight="bold"), height=30
         )
         self.btn_iniciar_ott.pack(side="right", fill="x", expand=True, padx=(10, 0))
-        
+
         self.btn_cancelar_ott = ctk.CTkButton(
-            frame_exec_inner, text="🛑 Cancelar", command=self.cancelar_proceso_ott, fg_color=("#f8d7da", "#401c1c"), hover_color=("#f5c2c7", "#521616"), text_color=("#721c24", "#e599f7"), font=ctk.CTkFont(size=12, weight="bold"), height=30, width=100, state="disabled"
+            frame_exec_inner, text="🛑 Cancelar",
+            command=self.cancelar_proceso_ecommerce_dispatch,
+            fg_color=("#f8d7da", "#401c1c"), hover_color=("#f5c2c7", "#521616"),
+            text_color=("#721c24", "#e599f7"), font=ctk.CTkFont(size=12, weight="bold"),
+            height=30, width=100, state="disabled"
         )
         self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
 
@@ -966,7 +1026,7 @@ class AppGideon(ctk.CTk):
         frame_consola_hdr_ott = ctk.CTkFrame(card_consola_ott, fg_color="transparent")
         frame_consola_hdr_ott.pack(fill="x", padx=12, pady=(8, 4))
 
-        ctk.CTkLabel(frame_consola_hdr_ott, text="🖥️ Consola de Monitoreo OTT", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+        ctk.CTkLabel(frame_consola_hdr_ott, text="🖥️ Consola de Monitoreo eCommerce", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
 
         ctk.CTkButton(frame_consola_hdr_ott, text="🧹 Limpiar", width=65, height=22, command=self.limpiar_log_consola_ott, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11)).pack(side="right", padx=(5, 0))
 
@@ -1051,6 +1111,47 @@ class AppGideon(ctk.CTk):
         self.refrescar_vista_cola_ott()
         self.log_salida_ott("🗑️ Cola OTT limpiada.")
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # DISPATCHERS DE MODO eCOMMERCE (OTT ↔ FTTH)
+    # ──────────────────────────────────────────────────────────────────────────
+    def _cambiar_modo_ecommerce(self, valor):
+        """Muestra/oculta los paneles de formulario según el modo seleccionado."""
+        if "FTTH" in valor:
+            self.modo_ecommerce = "FTTH"
+            self.frame_panel_ott.pack_forget()
+            self.frame_panel_ftth_ecom.pack(fill="x", before=self.frame_panel_ott.master.winfo_children()[-1] if self.frame_panel_ott.master.winfo_children() else None)
+        else:
+            self.modo_ecommerce = "OTT"
+            self.frame_panel_ftth_ecom.pack_forget()
+            self.frame_panel_ott.pack(fill="x")
+
+    def agregar_lote_ecommerce_dispatch(self):
+        """Despacha al método de agregar correcto según el modo activo."""
+        if self.modo_ecommerce == "FTTH":
+            self.agregar_lote_ftth_ecom()
+        else:
+            self.agregar_lote_ott()
+
+    def iniciar_proceso_ecommerce_dispatch(self):
+        """Despacha al método de inicio correcto según el modo activo."""
+        if self.modo_ecommerce == "FTTH":
+            self.iniciar_proceso_ftth_ecom()
+        else:
+            self.iniciar_proceso_ott()
+
+    def cancelar_proceso_ecommerce_dispatch(self):
+        """Cancela el proceso activo según el modo."""
+        if self.modo_ecommerce == "FTTH":
+            if not self.cancel_event_ecom.is_set():
+                self.cancel_event_ecom.set()
+                self.btn_cancelar_ott.configure(state="disabled")
+                self.log_salida_ott("🛑 [SISTEMA] Solicitud de CANCELACIÓN FTTH eCommerce recibida...")
+        else:
+            self.cancelar_proceso_ott()
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # MÉTODOS OTT (sin cambios en lógica, solo renombres de UI)
+    # ──────────────────────────────────────────────────────────────────────────
     def agregar_lote_ott(self):
         plan_ott = self.cmb_plan_ott.get()
         if not plan_ott:
@@ -1068,7 +1169,7 @@ class AppGideon(ctk.CTk):
 
         for _ in range(cant):
             item = {
-                "tipo_persona": "Persona natural", 
+                "tipo_persona": "Persona natural",
                 "ubicacion": ubicacion_ott,
                 "plan_seleccionado": plan_ott,
                 "aplicar_promocion": False,
@@ -1079,7 +1180,87 @@ class AppGideon(ctk.CTk):
             self.matriz_cuentas_ott.append(item)
 
         self.refrescar_vista_cola_ott()
-        self.log_salida_ott(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}, {tipo_doc_ott}) a la Cola OTT.")
+        self.log_salida_ott(f"➕ Añadidas {cant} cuentas OTT ({plan_ott}, {tipo_doc_ott}) a la Cola.")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # MÉTODOS FTTH eCOMMERCE
+    # ──────────────────────────────────────────────────────────────────────────
+    def agregar_lote_ftth_ecom(self):
+        plan_ecom = self.cmb_plan_ecom.get()
+        if not plan_ecom:
+            messagebox.showwarning("Plan Inválido", "Por favor selecciona un plan FTTH eCommerce.")
+            return
+        try:
+            cant = int(self.spn_cantidad_ott.get())
+        except ValueError:
+            cant = 1
+
+        ubicacion_ecom = self.cmb_ubicacion_ecom.get()
+        for _ in range(cant):
+            item = {
+                "tipo_persona": "Natural",
+                "ubicacion": ubicacion_ecom,
+                "plan_seleccionado": plan_ecom,
+            }
+            self.matriz_cuentas_ecom.append(item)
+
+        self.refrescar_vista_cola_ott()  # Cola compartida para mostrar todo junto
+        self.log_salida_ott(f"➕ Añadidas {cant} cuentas FTTH eCommerce ({plan_ecom} | {ubicacion_ecom}) a la Cola.")
+
+    def iniciar_proceso_ftth_ecom(self):
+        if not self.matriz_cuentas_ecom:
+            messagebox.showinfo("Cola vacía", "Agrega al menos una cuenta FTTH eCommerce antes de iniciar.")
+            return
+
+        self.btn_iniciar_ott.configure(state="disabled")
+        self.btn_cancelar_ott.configure(state="normal")
+        self.cancel_event_ecom.clear()
+        self.fallidas_tanda_actual_ecom.clear()
+
+        self.log_salida_ott(f"🚀 Iniciando {len(self.matriz_cuentas_ecom)} cuenta(s) FTTH eCommerce (1 hilo)...")
+        threading.Thread(target=self.ejecutar_hilos_ftth_ecom, daemon=True).start()
+
+    def ejecutar_hilos_ftth_ecom(self):
+        """Ejecuta el flujo FTTH eCommerce en serie (1 hilo a la vez, igual que OTT)."""
+        num_hilos = 1
+        tanda = list(self.matriz_cuentas_ecom)
+
+        with ThreadPoolExecutor(max_workers=num_hilos) as executor:
+            for i, config in enumerate(tanda, start=1):
+                if self.cancel_event_ecom.is_set():
+                    self.log_salida_ott("🚫 Ejecución FTTH eCommerce cancelada.")
+                    break
+
+                self.update_kpis_ui_ott(ejecucion=1)
+
+                def _crear_cb(c_item):
+                    def _cb(exito=0, fallo=0):
+                        self.update_kpis_ui_ott(ejecucion=-1, exito=exito, fallo=fallo)
+                        if fallo > 0:
+                            self.fallidas_tanda_actual_ecom.append(dict(c_item))
+                    return _cb
+
+                executor.submit(
+                    ejecutar_worker_ftth_ecommerce,
+                    i, config, self.config_sys, self.log_salida_ott,
+                    _crear_cb(config),
+                    self.cancel_event_ecom,
+                    self.update_thread_status
+                )
+                import time as _time
+                _time.sleep(6)
+
+        def _finalizar():
+            if self.cancel_event_ecom.is_set():
+                self.log_salida_ott("🛑 Procesamiento FTTH eCommerce cancelado.")
+            else:
+                self.log_salida_ott("✅ Proceso FTTH eCommerce finalizado por completo.")
+            self.btn_iniciar_ott.configure(state="normal")
+            self.btn_cancelar_ott.configure(state="disabled")
+            if hasattr(self, 'cargar_historial_reporte'):
+                self.cargar_historial_reporte()
+
+        self.after(500, _finalizar)
 
     def iniciar_proceso_ott(self):
         if not self.matriz_cuentas_ott:
@@ -1523,7 +1704,7 @@ class AppGideon(ctk.CTk):
         fecha_solo = fecha_hora.split(" ")[0].strip()
 
         # Determinar carpeta base según servicio
-        carpeta_base = "Evidencias_QA" if servicio == "OTT" else "Evidencias_QA_Fibra"
+        carpeta_base = "Evidencias_QA_OTT" if servicio == "OTT" else "Evidencias_QA_Fibra"
 
         # Buscar carpeta específica de evidencias
         ruta_directa = os.path.join(carpeta_base, fecha_solo, mailbox)
@@ -1541,17 +1722,17 @@ class AppGideon(ctk.CTk):
                     break
 
         if not encontrado:
-            if os.path.exists("Evidencias_QA"):
-                os.startfile("Evidencias_QA")
+            if os.path.exists(carpeta_base):
+                os.startfile(carpeta_base)
             else:
                 messagebox.showinfo("Evidencias", f"No se encontró carpeta de evidencias para la cuenta: {mailbox}")
 
     def abrir_carpeta_evidencias_general(self):
-        if os.path.exists("Evidencias_QA"):
-            os.startfile("Evidencias_QA")
+        if os.path.exists("Evidencias_QA_Fibra"):
+            os.startfile("Evidencias_QA_Fibra")
         else:
-            os.makedirs("Evidencias_QA", exist_ok=True)
-            os.startfile("Evidencias_QA")
+            os.makedirs("Evidencias_QA_Fibra", exist_ok=True)
+            os.startfile("Evidencias_QA_Fibra")
 
     def copiar_correo_seleccionado(self, event=None):
         seleccion = self.tree_historial.selection()
@@ -1563,9 +1744,9 @@ class AppGideon(ctk.CTk):
         for item_id in seleccion:
             item = self.tree_historial.item(item_id)
             valores = item.get("values", [])
-            if valores and len(valores) >= 5:
-                id_cliente = str(valores[3]).strip()
-                email = str(valores[4]).strip()
+            if valores and len(valores) >= 6:
+                id_cliente = str(valores[4]).strip()
+                email = str(valores[5]).strip()
                 
                 if id_cliente and id_cliente not in ["-", "N/A", "None", ""]:
                     correos.append(id_cliente)

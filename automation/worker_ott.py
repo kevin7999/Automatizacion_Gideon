@@ -256,7 +256,7 @@ def crear_cuenta_ott(
             timer.start_step("P4: Validar OTP")
             # Esperar a que la URL cambie indicando que pasamos al OTP
             try:
-                page.wait_for_url("**/*validacion-streaming=otp*", timeout=20000)
+                page.wait_for_url("**/*validacion-streaming=otp*", timeout=60000)
                 # Esperar un poco a que termine de renderizar el modal de OTP
                 time.sleep(2)
             except Exception as e:
@@ -297,13 +297,16 @@ def crear_cuenta_ott(
             
             # Llenar casillas OTP
             for i, digito in enumerate(codigo_otp):
-                # Escribimos explícitamente en otp.0, otp.1, otp.2...
-                caja = page.locator(f"input[name='otp.{i}']")
-                caja.click()
+                # Escribimos explícitamente en otp.0, otp.1, otp.2 o equivalente
+                caja = page.locator(f"input[name='otp.{i}'], input[name='otp{i}'], input[aria-label*='{i+1}']").first
+                if i == 0:
+                    caja.wait_for(state="visible", timeout=5000)
+                caja.fill("", force=True)
                 caja.press_sequentially(digito, delay=50)
                 
             # Disparar blur para asegurar validación final
-            page.locator(f"input[name='otp.5']").blur()
+            caja_final = page.locator("input[name='otp.5'], input[name='otp5'], input[aria-label*='6']").first
+            caja_final.blur()
                 
             # Dar chance a React de actualizar el botón
             time.sleep(1)
