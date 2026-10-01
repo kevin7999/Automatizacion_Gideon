@@ -937,53 +937,60 @@ def ejecutar_worker_ftth_ecommerce(
             edificio_val = dir_ott.get("building_name", "torre directv")
             num_casa_val = dir_ott.get("house_number", "533")
 
-            # Llenar Estado primero (cabeza de la cadena de dependencias)
-            _react_select(page, "installationAddress.state", estado_val)
-            page.wait_for_timeout(3000)  # Esperar carga de Ciudad
+            log_callback(f"[Hilo {id_hilo}] Datos: {estado_val} / {ciudad_val} / {muni_val} / {zona_val}")
 
-            _react_select(page, "installationAddress.city", ciudad_val)
-            page.wait_for_timeout(3000)  # Esperar carga de Municipio
+            # Helper local con wait + log para cada select
+            def _sel(nombre_campo, valor, descripcion):
+                try:
+                    page.wait_for_selector(f"select[name='{nombre_campo}']", timeout=8000)
+                    page.evaluate("""([name, text]) => {
+                        const select = document.querySelector(`select[name='${name}']`);
+                        if (!select) return;
+                        const target = Array.from(select.options).find(o => o.text.toLowerCase().includes(text.toLowerCase()));
+                        if (!target) return;
+                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                        nativeSetter.call(select, target.value);
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }""", [nombre_campo, valor])
+                    log_callback(f"[Hilo {id_hilo}] OK {descripcion}: '{valor}'")
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] WARN {descripcion} ('{nombre_campo}'): {e}")
 
-            _react_select(page, "installationAddress.municipality", muni_val)
-            page.wait_for_timeout(3000)  # Esperar carga de Zona
-
-            _react_select(page, "installationAddress.zone", zona_val)
-            page.wait_for_timeout(3000)  # Esperar carga de CP
-
-            # CÃÂ³digo postal
-            try:
-                _react_select(page, "installationAddress.postalCode", cp_val)
-            except Exception:
-                pass  # Se autocompleta cuando hay una sola opciÃÂ³n
+            _sel("installationAddress.state",        estado_val,    "Estado")
+            page.wait_for_timeout(3000)
+            _sel("installationAddress.city",         ciudad_val,    "Ciudad")
+            page.wait_for_timeout(3000)
+            _sel("installationAddress.municipality", muni_val,      "Municipio")
+            page.wait_for_timeout(3000)
+            _sel("installationAddress.zone",         zona_val,      "Zona")
+            page.wait_for_timeout(3000)
+            _sel("installationAddress.postalCode",   cp_val,        "Codigo Postal")
             page.wait_for_timeout(2000)
+            _sel("installationAddress.propertyArea", "70",          "Area Inmueble")
+            page.wait_for_timeout(1000)
+            _sel("installationAddress.streetType",   tipo_calle,    "Tipo Calle")
+            page.wait_for_timeout(1000)
+            _sel("installationAddress.buildingType", "residencial", "Tipo Edificio")
+            page.wait_for_timeout(1000)
 
-            # ÃÂrea del inmueble (campo fijo genÃÂ©rico)
+            # Inputs de texto con placeholders exactos del CRM
             try:
-                _react_select(page, "installationAddress.propertyArea", "70")
-            except Exception:
-                pass  # No crÃÂ­tico
+                page.locator("input[placeholder*='avenida o calle']").first.fill(nombre_calle, force=True)
+                log_callback(f"[Hilo {id_hilo}] OK Avenida/Calle: {nombre_calle}")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] WARN Avenida/Calle: {e}")
 
-            # Tipo de calle
             try:
-                _react_select(page, "installationAddress.streetType", tipo_calle)
-            except Exception:
-                pass
+                page.locator("input[placeholder*='nombre del edificio']").first.fill(edificio_val, force=True)
+                log_callback(f"[Hilo {id_hilo}] OK Edificio: {edificio_val}")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] WARN Edificio: {e}")
 
-            # Campos de texto libres: Avenida/Calle, Edificio/Casa, NÃÂ° de apartamento
-            def rellenar_input(placeholder_patterns, valor):
-                for pat in placeholder_patterns:
-                    try:
-                        campo = page.locator(f"input[placeholder*='{pat}']").first
-                        if campo.is_visible():
-                            campo.fill(valor, force=True)
-                            campo.blur()
-                            return
-                    except Exception:
-                        continue
-
-            rellenar_input(["avenida o calle", "calle", "Avenida", "avenida"], nombre_calle)
-            rellenar_input(["edificio", "casa", "nombre del edificio", "Edificio"], edificio_val)
-            rellenar_input(["numero de casa", "n de casa", "apartamento"], num_casa_val)
+            try:
+                page.locator("input[placeholder*='número de casa']").first.fill(num_casa_val, force=True)
+                log_callback(f"[Hilo {id_hilo}] OK N Casa: {num_casa_val}")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] WARN N Casa: {e}")
 
             page.wait_for_timeout(1000)
             guardar_evidencia(timer.current_step)
