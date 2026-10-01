@@ -822,7 +822,6 @@ def ejecutar_worker_ftth_ecommerce(
                 raise Exception("El formulario de OTP no apareció a tiempo.")
 
             log_callback(f"[Hilo {id_hilo}] ⏳ Esperando OTP en {email_generado}...")
-            import time
             time.sleep(10)
 
             codigo_otp = None
@@ -849,7 +848,6 @@ def ejecutar_worker_ftth_ecommerce(
                 raise Exception("Tiempo agotado: no se recibió el OTP en Maildrop.")
 
             try:
-                import re
                 cajas = page.locator("input[placeholder='0'], input[name^='otp.'], input[maxlength='1']")
                 if cajas.count() >= 6:
                     for i, digito in enumerate(codigo_otp):
