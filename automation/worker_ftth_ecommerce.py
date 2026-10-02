@@ -11,7 +11,7 @@ from core.generadores import generar_telefono_ve, generar_nombre_humano_limpio
 from core.catalogos import cargar_catalogo_direcciones, cargar_catalogo_planes
 from automation.worker import StepTimer
 
-# CatÃÂ¡logos cargados al inicio (thread-safe, solo lectura)
+# Catálogos cargados al inicio (thread-safe, solo lectura)
 CATALOGO_DIRECCIONES_ECOM = cargar_catalogo_direcciones()
 CATALOGO_PLANES_ECOM = cargar_catalogo_planes()
 
@@ -36,12 +36,12 @@ def _detectar_captcha(page, solo_fullpage=False) -> bool:
             except:
                 pass
 
-        # 2. Cloudflare Turnstile EMBEBIDO (moderno â no cambia URL)
-        # Turnstile resuelto inyecta un valor en el input oculto; si estÃ¡ vacÃ­o, no fue resuelto.
+        # 2. Cloudflare Turnstile EMBEBIDO (moderno — no cambia URL)
+        # Turnstile resuelto inyecta un valor en el input oculto; si está vacío, no fue resuelto.
         try:
             turnstile_input = page.locator("input[name='cf-turnstile-response']")
             if turnstile_input.count() > 0:
-                # El iframe del widget debe estar visible Y el token debe estar vacÃ­o
+                # El iframe del widget debe estar visible Y el token debe estar vacío
                 iframe_ts = page.locator(
                     "iframe[src*='challenges.cloudflare.com'], "
                     "iframe[src*='turnstile'], "
@@ -103,16 +103,16 @@ def _esperar_captcha_si_presente(page, id_hilo, contexto, log_callback, cancel_e
         return  # Fast-path: sin captcha
 
     log_callback(
-        f"[Hilo {id_hilo}] ð¡ï¸ [{contexto}] CAPTCHA detectado. "
-        f"ResuÃ©lvelo manualmente en el navegador (ventana: 5 min)..."
+        f"[Hilo {id_hilo}] 🛡️ [{contexto}] CAPTCHA detectado. "
+        f"Resuélvelo manualmente en el navegador (ventana: 5 min)..."
     )
 
     for segundo in range(300):
         if cancel_event and cancel_event.is_set():
-            raise Exception("EjecuciÃ³n cancelada por el usuario durante la espera de Captcha.")
+            raise Exception("Ejecución cancelada por el usuario durante la espera de Captcha.")
 
         if not _detectar_captcha(page, solo_fullpage):
-            log_callback(f"[Hilo {id_hilo}] â [{contexto}] Captcha superado tras {segundo}s.")
+            log_callback(f"[Hilo {id_hilo}] ✅ [{contexto}] Captcha superado tras {segundo}s.")
             page.wait_for_timeout(1500)
             return
 
@@ -131,17 +131,17 @@ def _esperar_selector_o_captcha(
     """
     Primitiva de espera resiliente: espera a que `selector` sea visible.
 
-    Ciclo de decisiÃ³n en cada tick:
-      1. Si la pÃ¡gina estÃ¡ navegando (post-redirect de CF) â espera domcontentloaded.
-      2. Si el selector ya estÃ¡ visible â retorna True.
-      3. Si hay CAPTCHA activo â notifica, NO cuenta el tiempo, sigue esperando.
-      4. Si se agota timeout_total sin captcha â lanza excepciÃ³n con diagnÃ³stico.
+    Ciclo de decisión en cada tick:
+      1. Si la página está navegando (post-redirect de CF) → espera domcontentloaded.
+      2. Si el selector ya está visible → retorna True.
+      3. Si hay CAPTCHA activo → notifica, NO cuenta el tiempo, sigue esperando.
+      4. Si se agota timeout_total sin captcha → lanza excepción con diagnóstico.
 
-    FIX CRÃTICO: Cuando Cloudflare resuelve el captcha, hace un HTTP redirect de vuelta
-    a la URL original. En ese momento Playwright entra en estado de navegaciÃ³n activa
-    y TODAS las queries del DOM lanzan excepciones. El cÃ³digo anterior las capturaba con
-    `except: pass` quedando en un bloqueo silencioso eterno. Esta versiÃ³n detecta ese
-    estado y espera a que la navegaciÃ³n termine antes de continuar.
+    FIX CRÍTICO: Cuando Cloudflare resuelve el captcha, hace un HTTP redirect de vuelta
+    a la URL original. En ese momento Playwright entra en estado de navegación activa
+    y TODAS las queries del DOM lanzan excepciones. El código anterior las capturaba con
+    `except: pass` quedando en un bloqueo silencioso eterno. Esta versión detecta ese
+    estado y espera a que la navegación termine antes de continuar.
     """
     transcurrido = 0
     captcha_activo = False
@@ -151,18 +151,18 @@ def _esperar_selector_o_captcha(
         if cancel_event and cancel_event.is_set():
             raise Exception(f"[{contexto}] Ejecucion cancelada por el usuario.")
 
-        # ââ 1. Detectar si la pÃ¡gina estÃ¡ en medio de una navegaciÃ³n ââââââââââ
-        # Esto ocurre justo despuÃ©s de que CF redirige a la URL real.
+        # ── 1. Detectar si la página está en medio de una navegación ──────────
+        # Esto ocurre justo después de que CF redirige a la URL real.
         # Las queries DOM en este estado fallan con "Execution context was destroyed".
         navegando = False
         try:
-            # Si la URL cambiÃ³ hacia algo diferente a la challenge de CF, CF ya redirigiÃ³.
+            # Si la URL cambió hacia algo diferente a la challenge de CF, CF ya redirigió.
             url_actual = page.url
             if ("/cdn-cgi/" in url_objetivo or "__cf_chl" in url_objetivo):
-                # Estabamos en la challenge page. Si la URL ya no tiene eso, CF redirigiÃ³.
+                # Estabamos en la challenge page. Si la URL ya no tiene eso, CF redirigió.
                 if "/cdn-cgi/" not in url_actual and "__cf_chl" not in url_actual:
                     log_callback(
-                        f"[Hilo {id_hilo}] â©ï¸  [{contexto}] CF redirigiÃ³ a: {url_actual[:60]}..."
+                        f"[Hilo {id_hilo}] ↩️  [{contexto}] CF redirigió a: {url_actual[:60]}..."
                         f" Esperando carga de pagina..."
                     )
                     url_objetivo = url_actual  # actualizar referencia
@@ -173,30 +173,30 @@ def _esperar_selector_o_captcha(
                     page.wait_for_timeout(1500)
                     if captcha_activo:
                         captcha_activo = False
-                        log_callback(f"[Hilo {id_hilo}] â [{contexto}] Captcha resuelto. Pagina cargada. Continuando...")
-                    continue  # Re-evaluar desde arriba con la nueva pÃ¡gina
+                        log_callback(f"[Hilo {id_hilo}] ✅ [{contexto}] Captcha resuelto. Pagina cargada. Continuando...")
+                    continue  # Re-evaluar desde arriba con la nueva página
 
         except Exception:
-            # page.url puede fallar si la pÃ¡gina estÃ¡ navegando activamente
+            # page.url puede fallar si la página está navegando activamente
             navegando = True
             page.wait_for_timeout(1000)
-            # NO incrementar transcurrido: estamos en navegaciÃ³n, no en timeout real
+            # NO incrementar transcurrido: estamos en navegación, no en timeout real
             continue
 
-        # ââ 2. Verificar si el selector ya estÃ¡ disponible ââââââââââââââââââââ
+        # ── 2. Verificar si el selector ya está disponible ────────────────────
         if not navegando:
             try:
                 loc = page.locator(selector)
                 if loc.count() > 0 and loc.first.is_visible(timeout=500):
                     if captcha_activo:
-                        log_callback(f"[Hilo {id_hilo}] â [{contexto}] Captcha resuelto. Elemento encontrado.")
+                        log_callback(f"[Hilo {id_hilo}] ✅ [{contexto}] Captcha resuelto. Elemento encontrado.")
                     return True
             except Exception:
-                # Puede ocurrir si la pÃ¡gina estÃ¡ cargando. No contar como timeout.
+                # Puede ocurrir si la página está cargando. No contar como timeout.
                 page.wait_for_timeout(800)
                 continue
 
-        # ââ 3. Verificar si hay CAPTCHA bloqueando ââââââââââââââââââââââââââââ
+        # ── 3. Verificar si hay CAPTCHA bloqueando ────────────────────────────
         try:
             hay_captcha = _detectar_captcha(page, solo_fullpage)
         except Exception:
@@ -205,7 +205,7 @@ def _esperar_selector_o_captcha(
         if hay_captcha:
             if not captcha_activo:
                 log_callback(
-                    f"[Hilo {id_hilo}] ð¡ï¸  [{contexto}] CAPTCHA detectado. "
+                    f"[Hilo {id_hilo}] 🛡️  [{contexto}] CAPTCHA detectado. "
                     f"Resuelvelo en el navegador y el bot continuara automaticamente..."
                 )
                 captcha_activo = True
@@ -219,10 +219,10 @@ def _esperar_selector_o_captcha(
             continue
         else:
             if captcha_activo:
-                # El captcha desapareciÃ³ pero aÃºn no hubo redirect detectado.
+                # El captcha desapareció pero aún no hubo redirect detectado.
                 # Dar margen para que CF procese y redirija.
                 captcha_activo = False
-                log_callback(f"[Hilo {id_hilo}] â³ [{contexto}] Captcha resuelto. Esperando redirect de CF...")
+                log_callback(f"[Hilo {id_hilo}] ⏳ [{contexto}] Captcha resuelto. Esperando redirect de CF...")
                 try:
                     page.wait_for_load_state("domcontentloaded", timeout=10000)
                 except Exception:
@@ -233,7 +233,7 @@ def _esperar_selector_o_captcha(
         page.wait_for_timeout(intervalo * 1000)
         transcurrido += intervalo
 
-    # ââ 4. Timeout agotado: captura de diagnÃ³stico âââââââââââââââââââââââââââ
+    # ── 4. Timeout agotado: captura de diagnóstico ───────────────────────────
     raise Exception(
         f"[{contexto}] Timeout ({timeout_total}s): el selector '{selector}' "
         f"no aparecio. URL actual: {page.url}. "
@@ -244,7 +244,7 @@ def _esperar_selector_o_captcha(
 def _safe_fill_obligatorio(page, selector_list, valor, campo_nombre, id_hilo, log_callback):
     """
     Llena un campo OBLIGATORIO del formulario. A diferencia de safe_fill, NO falla
-    en silencio: intenta mÃºltiples selectores y lanza advertencia tÃ¡ctica si ninguno
+    en silencio: intenta múltiples selectores y lanza advertencia táctica si ninguno
     recibe el valor correctamente. Reintenta hasta 3 veces.
     """
     for intento in range(3):
@@ -259,7 +259,7 @@ def _safe_fill_obligatorio(page, selector_list, valor, campo_nombre, id_hilo, lo
                 loc.fill(valor, force=True)
                 loc.blur()
                 page.wait_for_timeout(300)
-                # Verificar que el valor quedÃ³ escrito
+                # Verificar que el valor quedó escrito
                 val_actual = loc.input_value(timeout=1000).strip()
                 if val_actual and valor.strip() in val_actual:
                     return True
@@ -268,14 +268,14 @@ def _safe_fill_obligatorio(page, selector_list, valor, campo_nombre, id_hilo, lo
         page.wait_for_timeout(500)
 
     log_callback(
-        f"[Hilo {id_hilo}] â ï¸ Campo obligatorio '{campo_nombre}' no pudo ser llenado "
+        f"[Hilo {id_hilo}] ⚠️ Campo obligatorio '{campo_nombre}' no pudo ser llenado "
         f"con valor '{valor}'. Verifique el DOM del formulario."
     )
     return False
 
 
 # HELPER: Lectura OTP desde Maildrop (mismo protocolo blindado que OTT)
-# Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+# ────────────────────────────────────────────────────────────────────────────────
 def _obtener_otp_maildrop_ecom(email_base, correlativo, p_context, id_hilo, log_callback, cancel_event=None):
     """
     Abre una pestana de Maildrop y extrae el OTP de 6 digitos.
@@ -379,7 +379,7 @@ def _obtener_otp_maildrop_ecom(email_base, correlativo, p_context, id_hilo, log_
 
 def _react_select(page, select_name, text_match):
     """
-    Selecciona una opciÃÂ³n en un <select> de React comparando texto parcial
+    Selecciona una opción en un <select> de React comparando texto parcial
     e inyectando el evento 'change' nativo para que React actualice su estado.
     """
     page.evaluate("""([name, text]) => {
@@ -394,9 +394,9 @@ def _react_select(page, select_name, text_match):
     }""", [select_name, text_match])
 
 
-# Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+# ────────────────────────────────────────────────────────────────────────────────
 # WORKER PRINCIPAL: FTTH eCOMMERCE
-# Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+# ────────────────────────────────────────────────────────────────────────────────
 def ejecutar_worker_ftth_ecommerce(
     id_hilo,
     datos_cuenta,
@@ -407,23 +407,23 @@ def ejecutar_worker_ftth_ecommerce(
     update_thread_status_callback=None
 ):
     """
-    Worker de automatizaciÃÂ³n para la tienda eCommerce B2C de Simpletv Fibra.
+    Worker de automatización para la tienda eCommerce B2C de Simpletv Fibra.
 
     Flujo de 5 fases:
-      Fase 1 Ã¢â¬â ValidaciÃÂ³n de cobertura (Google Maps)
-      Fase 2 Ã¢â¬â Vitrina y selecciÃÂ³n de plan / equipo ONT
-      Fase 3 Ã¢â¬â GeneraciÃÂ³n de contrato (4 sub-pasos)
-      Fase 4 Ã¢â¬â AceptaciÃÂ³n de documentos legales
-      Fase 5 Ã¢â¬â Handoff al operador (pantalla Pagar ahora)
+      Fase 1 — Validación de cobertura (Google Maps)
+      Fase 2 — Vitrina y selección de plan / equipo ONT
+      Fase 3 — Generación de contrato (4 sub-pasos)
+      Fase 4 — Aceptación de documentos legales
+      Fase 5 — Handoff al operador (pantalla Pagar ahora)
     """
     timer = StepTimer(id_hilo, log_callback, update_thread_status_callback)
 
-    # Ã¢ââ¬Ã¢ââ¬ ParÃÂ¡metros de entrada Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+    # ── Parámetros de entrada ──
     plan_id    = datos_cuenta.get("plan_seleccionado", "")
     ubicacion  = datos_cuenta.get("ubicacion", "Caracas")
 
-    # Ã¢ââ¬Ã¢ââ¬ P0: PreparaciÃÂ³n de identidad sintÃÂ©tica Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-    timer.start_step("P0: PreparaciÃÂ³n")
+    # ── P0: Preparación de identidad sintética ──
+    timer.start_step("P0: Preparación")
     email_generado = ""
     tipo_cliente_str = "Natural"
     try:
@@ -442,12 +442,12 @@ def ejecutar_worker_ftth_ecommerce(
         mailbox_name   = f"{email_base}{nuevo_corr}"
         email_generado = f"{mailbox_name}@maildrop.cc"
 
-        # DirecciÃÂ³n base del catÃÂ¡logo (con cobertura garantizada)
+        # Dirección base del catálogo (con cobertura garantizada)
         dir_data = CATALOGO_DIRECCIONES_ECOM.get(ubicacion)
         if not dir_data:
             dir_data = list(CATALOGO_DIRECCIONES_ECOM.values())[0]
 
-        # String de bÃÂºsqueda para Google Places (ej: "Torre Directv, Urb. El Rosal, Caracas, Miranda, Venezuela")
+        # String de búsqueda para Google Places (ej: "Torre Directv, Urb. El Rosal, Caracas, Miranda, Venezuela")
         dir_google = (
             f"{dir_data['building_house']}, {dir_data['neighbourhood']}, "
             f"{dir_data['city']}, {dir_data['state']}, Venezuela"
@@ -456,18 +456,18 @@ def ejecutar_worker_ftth_ecommerce(
         fecha_hoy         = time.strftime("%Y-%m-%d")
         carpeta_evidencias = os.path.join(os.getcwd(), "Evidencias_QA_eCommerce", fecha_hoy, mailbox_name)
 
-        log_callback(f"[Hilo {id_hilo}] Ã°Å¸âÂ eCommerce FTTH: {nombre} {apellido} | {cedula} | {email_generado}")
-        log_callback(f"[Hilo {id_hilo}] Ã°Å¸âÂ DirecciÃÂ³n: {dir_google}")
+        log_callback(f"[Hilo {id_hilo}] 📝 eCommerce FTTH: {nombre} {apellido} | {cedula} | {email_generado}")
+        log_callback(f"[Hilo {id_hilo}] 📍 Dirección: {dir_google}")
         timer.stop_step()
 
     except Exception as e:
         timer.stop_step("Error")
         err_msg = formatear_error_amigable("preparando datos eCommerce", e)
-        log_callback(f"[Hilo {id_hilo}] Ã¢ÂÅ {err_msg}")
+        log_callback(f"[Hilo {id_hilo}] ❌ {err_msg}")
         update_kpi_callback(fallo=1)
         return {"exito": False, "error": err_msg, "email": ""}
 
-    # Ã¢ââ¬Ã¢ââ¬ Inicio de sesiÃÂ³n de Playwright Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+    # ── Inicio de sesión de Playwright ──
     with sync_playwright() as p:
         browser = None
         page    = None
@@ -490,21 +490,21 @@ def ejecutar_worker_ftth_ecommerce(
 
             timer.stop_step()
 
-            # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-            # FASE 1 Ã¢â¬â VALIDACIÃâN DE COBERTURA
-            # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-            # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            # ────────────────────────────────────────────────────────────────────────────────
+            # FASE 1 — VALIDACIÓN DE COBERTURA
+            # ────────────────────────────────────────────────────────────────────────────────
+            # ────────────────────────────────────────────────────────────────────────────────
             # FASE 1 - VALIDACION DE COBERTURA
             # Arquitectura: cada wait critico usa _esperar_selector_o_captcha.
             # Si Cloudflare/Turnstile aparece durante la carga, el proceso PAUSA y espera
             # al operador sin morir. Una vez resuelto, continua desde el punto exacto.
-            # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            # ────────────────────────────────────────────────────────────────────────────────
             timer.start_step("F1: Cobertura P1/2 Datos")
             page.goto(URL_TIENDA_ECOMMERCE)
             log_callback(f"[Hilo {id_hilo}] \U0001f310 Cargando tienda eCommerce... (URL: {URL_TIENDA_ECOMMERCE})")
 
-            # ââ ESPERA POST-GOTO: CF puede interceptar la carga ââââââââââââââââââââââââââ
-            # solo_fullpage=False para detectar tambiÃ©n Turnstile embebido en la pÃ¡gina
+            # ── ESPERA POST-GOTO: CF puede interceptar la carga ──────────────────────────
+            # solo_fullpage=False para detectar también Turnstile embebido en la página
             # Solo usamos selectores CSS puros (sin text='...' que rompe el locator compound)
             _esperar_selector_o_captcha(
                 page,
@@ -516,11 +516,11 @@ def ejecutar_worker_ftth_ecommerce(
             log_callback(f"[Hilo {id_hilo}] \u2705 Tienda cargada. Verificando modal de cobertura...")
             page.wait_for_timeout(1500)  # Dar tiempo a React para renderizar
 
-            # ââ VERIFICAR / ABRIR MODAL DE COBERTURA ââââââââââââââââââââââââââââââââââââ
+            # ── VERIFICAR / ABRIR MODAL DE COBERTURA ────────────────────────────────────
             # Estrategia: intentar varios indicadores del modal antes de buscarlo con clic
             modal_abierto = False
 
-            # Intento 1: el modal se abriÃ³ automÃ¡ticamente (texto visible)
+            # Intento 1: el modal se abrió automáticamente (texto visible)
             try:
                 if page.get_by_text("Validaci", exact=False).first.is_visible(timeout=3000):
                     modal_abierto = True
@@ -528,12 +528,12 @@ def ejecutar_worker_ftth_ecommerce(
             except Exception:
                 pass
 
-            # Intento 2: buscar por input del formulario (nombre, apellido, telÃ©fono)
+            # Intento 2: buscar por input del formulario (nombre, apellido, teléfono)
             if not modal_abierto:
                 try:
                     if page.locator("input[name*='name'], input[name='firstName']").first.is_visible(timeout=2000):
                         modal_abierto = True
-                        log_callback(f"[Hilo {id_hilo}] \U0001f4cb Formulario de contacto detectado en la pÃ¡gina.")
+                        log_callback(f"[Hilo {id_hilo}] \U0001f4cb Formulario de contacto detectado en la página.")
                 except Exception:
                     pass
 
@@ -553,7 +553,7 @@ def ejecutar_worker_ftth_ecommerce(
                     pass
 
             if not modal_abierto:
-                # Ãltimo recurso: esperar que cualquier input del form aparezca
+                # Último recurso: esperar que cualquier input del form aparezca
                 log_callback(f"[Hilo {id_hilo}] \u23f3 Esperando formulario de cobertura...")
                 try:
                     page.wait_for_selector(
@@ -566,7 +566,7 @@ def ejecutar_worker_ftth_ecommerce(
 
             log_callback(f"[Hilo {id_hilo}] \U0001f4dd Llenando datos de contacto...")
 
-            # ââ CAMPOS OBLIGATORIOS âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            # ── CAMPOS OBLIGATORIOS ─────────────────────────────────────────────────────
             page.wait_for_timeout(500)
 
             _safe_fill_obligatorio(
@@ -602,9 +602,9 @@ def ejecutar_worker_ftth_ecommerce(
             )
 
             guardar_evidencia(timer.current_step)
-            log_callback(f"[Hilo {id_hilo}] \U0001f4dd Formulario llenado. Buscando botÃ³n Avanzar...")
+            log_callback(f"[Hilo {id_hilo}] \U0001f4dd Formulario llenado. Buscando botón Avanzar...")
 
-            # ââ AVANZAR (con espera resiliente por si hay Turnstile aquÃ­ tambiÃ©n) ââââââââ
+            # ── AVANZAR (con espera resiliente por si hay Turnstile aquí también) ────────
             _esperar_selector_o_captcha(
                 page, "button:has-text('Avanzar')",
                 id_hilo, "Boton Avanzar cobertura", log_callback,
@@ -614,9 +614,9 @@ def ejecutar_worker_ftth_ecommerce(
             page.get_by_role("button", name="Avanzar").click(force=True)
             timer.stop_step()
 
-            # ââ Paso 2/2 Cobertura: Google Places / Maps ââââââââââââââââââââââââââââââââ
+            # ── Paso 2/2 Cobertura: Google Places / Maps ────────────────────────────────
             timer.start_step("F1: Cobertura P2/2 Mapa")
-            log_callback(f"[Hilo {id_hilo}] ðºï¸ Esperando formulario de direcci\u00f3n...")
+            log_callback(f"[Hilo {id_hilo}] 🗺️ Esperando formulario de direcci\u00f3n...")
 
             # Espera resiliente: puede haber un Turnstile en la transicion de paso
             _esperar_selector_o_captcha(
@@ -634,10 +634,10 @@ def ejecutar_worker_ftth_ecommerce(
             input_direccion.wait_for(state="visible", timeout=10000)
             log_callback(f"[Hilo {id_hilo}] \U0001f4cd Ingresando direcci\u00f3n: {dir_google}")
 
-            # Pegar la direcciÃ³n directamente
+            # Pegar la dirección directamente
             input_direccion.click()
             input_direccion.fill(dir_google, force=True)
-            log_callback(f"[Hilo {id_hilo}] \U0001f4cd DirecciÃ³n pegada. Esperando sugerencia del sistema...")
+            log_callback(f"[Hilo {id_hilo}] \U0001f4cd Dirección pegada. Esperando sugerencia del sistema...")
             
             page.wait_for_timeout(1000)
 
@@ -680,21 +680,21 @@ def ejecutar_worker_ftth_ecommerce(
             page.locator("a:visible, button:visible").filter(has_text=re.compile(r"Ver planes", re.I)).first.click(force=True)
 
             # Ya no esperamos a que cargue la vitrina visualmente porque haremos un bypass directo por URL.
-            # Solo damos un pequeÃ±o respiro para que el backend procese el clic y guarde la sesiÃ³n.
+            # Solo damos un pequeño respiro para que el backend procese el clic y guarde la sesión.
             page.wait_for_timeout(2000)
             
             timer.stop_step()
 
-            # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            # ────────────────────────────────────────────────────────────────────────────────
             # FASE 2 - VITRINA: SELECCION DE PAQUETE
-            # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            # ────────────────────────────────────────────────────────────────────────────────
             timer.start_step("F2: Seleccion de Plan")
 
             # Obtener datos del plan del catalogo
             datos_plan = CATALOGO_PLANES_ECOM.get(plan_id, {})
             velocidad  = datos_plan.get("velocidad", "")
 
-            log_callback(f"[Hilo {id_hilo}] ð Aplicando bypass de URL para el plan: {velocidad}")
+            log_callback(f"[Hilo {id_hilo}] 🚀 Aplicando bypass de URL para el plan: {velocidad}")
 
             enlaces_directos = {
                 "400": "https://tiendatesting.simple.com.ve/planes/f6c96f3e-2826-4845-9afb-b738a724c3bd"
@@ -704,21 +704,21 @@ def ejecutar_worker_ftth_ecommerce(
             url_plan = enlaces_directos.get(velocidad_num, enlaces_directos["400"])
 
             try:
-                log_callback(f"[Hilo {id_hilo}] ð Navegando directo a la configuraciÃ³n del plan {velocidad_num}...")
+                log_callback(f"[Hilo {id_hilo}] 🔗 Navegando directo a la configuración del plan {velocidad_num}...")
                 page.goto(url_plan, wait_until="commit")
                 page.wait_for_load_state("domcontentloaded")
                 page.wait_for_timeout(3000)
             except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] â ï¸ FallÃ³ el bypass por URL: {e}")
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Falló el bypass por URL: {e}")
 
-            # ââ SELECCION DE BUNDLE (TV) Y ROUTER ââ
+            # ── SELECCION DE BUNDLE (TV) Y ROUTER ──
             paquete = datos_plan.get("paquete", plan_id)
             modalidad = datos_plan.get("modalidad", "Compra")
 
             # Extraer palabra clave principal del paquete de TV (ej: "Sports", "Cine")
-            # Si el paquete base ya estÃ¡ incluido, quizÃ¡s no haya tarjeta que hacer clic
+            # Si el paquete base ya está incluido, quizás no haya tarjeta que hacer clic
             keyword_tv = paquete.split("+")[-1].strip() if "+" in paquete else paquete
-            log_callback(f"[Hilo {id_hilo}] ðº Buscando Bundle TV con keyword: '{keyword_tv}'")
+            log_callback(f"[Hilo {id_hilo}] 📺 Buscando Bundle TV con keyword: '{keyword_tv}'")
             try:
                 # Buscamos un div clickeable que contenga la palabra clave del paquete
                 card_paquete = page.locator("div").filter(has_text=re.compile(keyword_tv, re.I)).locator("div").first
@@ -726,12 +726,12 @@ def ejecutar_worker_ftth_ecommerce(
                 card_paquete.wait_for(state="visible", timeout=5000)
                 card_paquete.click(force=True)
                 page.wait_for_timeout(1000)
-                log_callback(f"[Hilo {id_hilo}] â Bundle TV seleccionado.")
+                log_callback(f"[Hilo {id_hilo}] ✅ Bundle TV seleccionado.")
             except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] â¹ï¸ No se seleccionÃ³ paquete TV extra (o ya viene incluido).")
+                log_callback(f"[Hilo {id_hilo}] ℹ️ No se seleccionó paquete TV extra (o ya viene incluido).")
 
             wifi_ver = "WiFi6" if "6" in datos_plan.get("router", "WiFi6") else "WiFi5"
-            log_callback(f"[Hilo {id_hilo}] ð Buscando Router: {wifi_ver} + {modalidad}")
+            log_callback(f"[Hilo {id_hilo}] 🛜 Buscando Router: {wifi_ver} + {modalidad}")
             try:
                 # El texto puede variar ("ONT - Router" o "ONT / Router"), filtramos por las palabras clave
                 # Buscamos un div que contenga el texto de wifi y la modalidad
@@ -739,9 +739,9 @@ def ejecutar_worker_ftth_ecommerce(
                 card_ont.wait_for(state="visible", timeout=8000)
                 card_ont.click(force=True)
                 page.wait_for_timeout(1000)
-                log_callback(f"[Hilo {id_hilo}] â Router seleccionado.")
+                log_callback(f"[Hilo {id_hilo}] ✅ Router seleccionado.")
             except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] â ï¸ No se pudo seleccionar el ONT '{wifi_ver} {modalidad}': {e}")
+                log_callback(f"[Hilo {id_hilo}] ⚠️ No se pudo seleccionar el ONT '{wifi_ver} {modalidad}': {e}")
 
             guardar_evidencia(timer.current_step)
             
@@ -749,7 +749,7 @@ def ejecutar_worker_ftth_ecommerce(
             # Usamos solo_fullpage=True para ignorar falsos positivos de widgets Turnstile pasivos
             _esperar_captcha_si_presente(page, id_hilo, "Configuracion plan", log_callback, cancel_event, solo_fullpage=True)
             
-            # Hacer clic en el botÃ³n Continuar final de la configuraciÃ³n del plan
+            # Hacer clic en el botón Continuar final de la configuración del plan
             try:
                 page.locator("button:visible").filter(has_text=re.compile(r"Continuar", re.I)).first.click(force=True)
                 page.wait_for_load_state("networkidle", timeout=10000)
@@ -757,7 +757,7 @@ def ejecutar_worker_ftth_ecommerce(
                 pass
             timer.stop_step()
 
-            # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            # ────────────────────────────────────────────────────────────────────────────────
                         # Pantalla del Carrito
             timer.start_step("F2: Carrito")
             try:
@@ -919,10 +919,10 @@ def ejecutar_worker_ftth_ecommerce(
             page.wait_for_timeout(2000)
             log_callback(f"[Hilo {id_hilo}] Llenando direccion de instalacion...")
 
-            # Datos del catalogo OTT
-            dir_ott = CATALOGO_DIRECCIONES_OTT.get(ubicacion)
+            # Datos del catalogo Ecommerce
+            dir_ott = CATALOGO_DIRECCIONES_ECOM.get(ubicacion)
             if not dir_ott:
-                dir_ott = list(CATALOGO_DIRECCIONES_OTT.values())[0]
+                dir_ott = list(CATALOGO_DIRECCIONES_ECOM.values())[0]
 
             estado_val   = dir_ott.get("state",         "distrito capital")
             ciudad_val   = dir_ott.get("city",          "caracas")
@@ -936,85 +936,102 @@ def ejecutar_worker_ftth_ecommerce(
 
             log_callback(f"[Hilo {id_hilo}] Datos: {estado_val} / {ciudad_val} / {muni_val} / {zona_val}")
 
-            # Helper: abre un dropdown custom (React/Ant) por su placeholder actual
-            # y selecciona la opcion que coincida con 'valor'.
-            def _ddown(placeholder_actual, valor, desc):
-                ABRE = [
-                    f"[title='{placeholder_actual}']",
-                    f"[placeholder='{placeholder_actual}']",
-                    f"span.ant-select-selection-placeholder:text-is('{placeholder_actual}')",
-                    f"span:text-is('{placeholder_actual}')",
-                    f"div:text-is('{placeholder_actual}')",
-                ]
-                OPCIONES = [
-                    f"[role='option']:has-text('{valor}')",
-                    f"li[role='option']:has-text('{valor}')",
-                    f".ant-select-item:has-text('{valor}')",
-                    f".select__option:has-text('{valor}')",
-                    f"div.rc-virtual-list-holder-inner div:has-text('{valor}')",
-                    f"li:has-text('{valor}')",
-                ]
+            # Helper nativo estilo OTT para inyectar en <select> de Tailwind/React
+            def react_select_by_text(p, select_name, text_match):
+                p.evaluate("""([name, text]) => {
+                    const select = document.querySelector(`select[name='${name}']`);
+                    if (!select) throw new Error("Select no encontrado: " + name);
+                    
+                    const options = Array.from(select.options);
+                    const target = options.find(o => o.text.toLowerCase().includes(text.toLowerCase()));
+                    if (!target) throw new Error("Opcion no encontrada para: " + text);
+                    
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                    nativeSetter.call(select, target.value);
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }""", [select_name, text_match])
+
+            try:
+                # La captura del DOM reveló que los atributos name usan el prefijo "address."
+                
+                # Estado
+                react_select_by_text(page, 'address.state', estado_val)
+                page.wait_for_timeout(3000)
+                
+                # Ciudad
+                react_select_by_text(page, 'address.city', ciudad_val)
+                page.wait_for_timeout(3000)
+                
+                # Municipio
+                react_select_by_text(page, 'address.municipality', muni_val)
+                page.wait_for_timeout(3000)
+                
+                # Zona
+                react_select_by_text(page, 'address.zone', zona_val)
+                page.wait_for_timeout(3000)
+                
+                # Código postal
                 try:
-                    for sel in ABRE:
-                        try:
-                            el = page.locator(sel).first
-                            if el.is_visible():
-                                el.click(force=True)
-                                page.wait_for_timeout(800)
-                                # Verificar que se abrio la lista
-                                for sel_op in OPCIONES:
-                                    try:
-                                        op = page.locator(sel_op).first
-                                        op.wait_for(state="visible", timeout=3000)
-                                        op.click(force=True)
-                                        page.wait_for_timeout(300)
-                                        log_callback(f"[Hilo {id_hilo}] OK {desc}: {valor}")
-                                        return True
-                                    except Exception:
-                                        continue
-                                # Si no encontro la opcion, cerrar con Escape
-                                page.keyboard.press("Escape")
-                        except Exception:
-                            continue
-                    log_callback(f"[Hilo {id_hilo}] WARN {desc}: dropdown '{placeholder_actual}' no abierto")
-                    return False
+                    react_select_by_text(page, 'address.postalCode', cp_val)
+                except:
+                    pass
+                page.wait_for_timeout(2000)
+                
+                # Area inmueble
+                try:
+                    react_select_by_text(page, 'address.area', '70')
+                except:
+                    pass
+                page.wait_for_timeout(2000)
+                
+                # Tipo de calle
+                react_select_by_text(page, 'address.streetType', tipo_calle)
+                page.wait_for_timeout(2000)
+                
+                # Tipo de edificio (En la imagen es "Torre", el fallback a residencial puede fallar si no existe)
+                try:
+                    react_select_by_text(page, 'address.buildingType', 'torre')
+                except:
+                    try:
+                        react_select_by_text(page, 'address.buildingType', 'residencial')
+                    except:
+                        pass
+                page.wait_for_timeout(2000)
+
+                # Entradas de texto (Desambiguación estricta por jerarquía DOM: Label -> Input)
+                
+                try:
+                    # 1. Avenida / Calle
+                    loc_calle = page.locator("label").filter(has_text=re.compile(r"Avenida \/ Calle", re.IGNORECASE)).locator("input").first
+                    if not loc_calle.is_visible(timeout=500):
+                        loc_calle = page.locator("input[placeholder*='avenida' i]").first
+                    loc_calle.fill(nombre_calle, force=True)
                 except Exception as e:
-                    log_callback(f"[Hilo {id_hilo}] WARN {desc}: {e}")
-                    return False
+                    log_callback(f"[Hilo {id_hilo}] WARN Avenida/Calle: {e}")
 
-            _ddown("Selecciona un estado",          estado_val,  "Estado")
-            page.wait_for_timeout(3000)
-            _ddown("Selecciona tu ciudad",          ciudad_val,  "Ciudad")
-            page.wait_for_timeout(3000)
-            _ddown("Selecciona un municipio",       muni_val,    "Municipio")
-            page.wait_for_timeout(3000)
-            _ddown("Selecciona tu zona",            zona_val,    "Zona")
-            page.wait_for_timeout(3000)
-            _ddown("Selecciona tu codigo postal",   cp_val,      "Codigo Postal")
-            page.wait_for_timeout(2000)
-            _ddown("Selecciona el area",            "70",        "Area Inmueble")
-            page.wait_for_timeout(1000)
-            _ddown("Selecciona un tipo de calle",   tipo_calle,  "Tipo Calle")
-            page.wait_for_timeout(1000)
-            _ddown("Selecciona un tipo de edificio","residencial","Tipo Edificio")
-            page.wait_for_timeout(1000)
+                try:
+                    # 2. Edificio / Casa / Apartamento
+                    loc_edif = page.locator("label").filter(has_text=re.compile(r"Edificio \/ Casa", re.IGNORECASE)).locator("input").first
+                    if not loc_edif.is_visible(timeout=500):
+                        loc_edif = page.locator("input[placeholder*='edificio' i]").first
+                    loc_edif.fill(edificio_val, force=True)
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] WARN Edificio: {e}")
 
-            # Inputs de texto (placeholders exactos del CRM)
-            try:
-                page.locator("input[placeholder*='avenida o calle']").first.fill(nombre_calle, force=True)
-                log_callback(f"[Hilo {id_hilo}] OK Avenida/Calle: {nombre_calle}")
+                try:
+                    # 3. N° de Casa o Apartamento
+                    # Usamos regex tolerante a caracteres especiales (N°, Nro, N.)
+                    loc_casa = page.locator("label").filter(has_text=re.compile(r"N.* de Casa", re.IGNORECASE)).locator("input").first
+                    if not loc_casa.is_visible(timeout=500):
+                        # Fallback extremo: de todos los inputs con "casa" o "apartamento", tomar el ÚLTIMO
+                        loc_casa = page.locator("input[placeholder*='casa' i], input[placeholder*='apartamento' i]").last
+                    loc_casa.fill(num_casa_val, force=True)
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] WARN N Casa: {e}")
+                
+                log_callback(f"[Hilo {id_hilo}] OK Dirección llenada (Selectores Estructurales por Label)")
             except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] WARN Avenida/Calle: {e}")
-            try:
-                page.locator("input[placeholder*='nombre del edificio']").first.fill(edificio_val, force=True)
-                log_callback(f"[Hilo {id_hilo}] OK Edificio: {edificio_val}")
-            except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] WARN Edificio: {e}")
-            try:
-                page.locator("input[placeholder*='mero de casa']").first.fill(num_casa_val, force=True)
-                log_callback(f"[Hilo {id_hilo}] OK N Casa: {num_casa_val}")
-            except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] WARN N Casa: {e}")
+                log_callback(f"[Hilo {id_hilo}] WARN Error fatal llenando dropdowns de dirección: {e}")
 
             page.wait_for_timeout(1000)
             guardar_evidencia(timer.current_step)
@@ -1023,10 +1040,10 @@ def ejecutar_worker_ftth_ecommerce(
             page.wait_for_timeout(3000)
             timer.stop_step()
 
-            # Ã¢ââ¬Ã¢ââ¬ CONTRATO PASO 4/4: Datos adicionales Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+            # ── CONTRATO PASO 4/4: Datos adicionales ──
             timer.start_step("F3: Contrato P4/4 Datos Adicionales")
             page.wait_for_selector("text='Datos adicionales'", timeout=20000)
-            log_callback(f"[Hilo {id_hilo}] Ã°Å¸ââ¹ Llenando datos adicionales...")
+            log_callback(f"[Hilo {id_hilo}] 📋 Llenando datos adicionales...")
 
             # Sexo
             page.evaluate("""() => {
@@ -1057,7 +1074,7 @@ def ejecutar_worker_ftth_ecommerce(
                 except Exception:
                     pass
 
-            # Pago mÃÂ³vil (mismo telÃÂ©fono)
+            # Pago móvil (mismo teléfono)
             try:
                 _react_select(page, "mobilePayment.prefix", prefijo_tel)
                 page.locator("input[name='mobilePayment.number'], input[placeholder*='pago']").first.fill(numero_tel, force=True)
@@ -1077,7 +1094,7 @@ def ejecutar_worker_ftth_ecommerce(
                     if val:
                         isp_select.select_option(value=val)
             except Exception:
-                pass  # No crÃÂ­tico
+                pass  # No crítico
 
             guardar_evidencia(timer.current_step)
 
@@ -1085,39 +1102,39 @@ def ejecutar_worker_ftth_ecommerce(
             page.wait_for_timeout(4000)
             timer.stop_step()
 
-            # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-            # FASE 4 Ã¢â¬â ACEPTACIÃâN DE DOCUMENTOS LEGALES
-            # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-            timer.start_step("F4: AceptaciÃÂ³n de Documentos")
-            page.wait_for_selector("text=/AceptaciÃÂ³n/i", timeout=20000)
-            log_callback(f"[Hilo {id_hilo}] Ã°Å¸âÅ Aceptando documentos legales...")
+            # ────────────────────────────────────────────────────────────────────────────────
+            # FASE 4 — ACEPTACIÓN DE DOCUMENTOS LEGALES
+            # ────────────────────────────────────────────────────────────────────────────────
+            timer.start_step("F4: Aceptación de Documentos")
+            page.wait_for_selector("text=/Aceptación/i", timeout=20000)
+            log_callback(f"[Hilo {id_hilo}] 📜 Aceptando documentos legales...")
 
-            # Marcar el checkbox de aceptaciÃÂ³n (forzado para evadir estilos custom)
+            # Marcar el checkbox de aceptación (forzado para evadir estilos custom)
             page.locator("input[type='checkbox']").first.check(force=True)
             page.wait_for_timeout(1000)
 
             guardar_evidencia(timer.current_step)
 
-            # ââ Punto 5/5: Antes de la aceptaciÃ³n legal final ââ
-            _esperar_captcha_si_presente(page, id_hilo, "AceptaciÃ³n legal", log_callback, cancel_event, solo_fullpage=True)
+            # ── Punto 5/5: Antes de la aceptación legal final ──
+            _esperar_captcha_si_presente(page, id_hilo, "Aceptación legal", log_callback, cancel_event, solo_fullpage=True)
 
             page.locator("button:visible").filter(
                 has_text=re.compile(r"Continuar|Aceptar", re.IGNORECASE)
             ).last.click(force=True)
 
-            # Esperar pantalla de carrito final con el botÃÂ³n "Pagar ahora"
+            # Esperar pantalla de carrito final con el botón "Pagar ahora"
             page.wait_for_selector("button:has-text('Pagar ahora')", timeout=25000)
             timer.stop_step()
 
-            # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-            # FASE 5 Ã¢â¬â HANDOFF AL OPERADOR
-            # Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+            # ────────────────────────────────────────────────────────────────────────────────
+            # FASE 5 — HANDOFF AL OPERADOR
+            # ────────────────────────────────────────────────────────────────────────────────
             timer.start_step("F5: Handoff Operador")
             guardar_evidencia("F5_pantalla_pagar_ahora")
-            log_callback(f"[Hilo {id_hilo}] Ã°Å¸ÂÂ ÃÂ¡FLUJO COMPLETADO! Pantalla de pago lista.")
-            log_callback(f"[Hilo {id_hilo}] Ã°Å¸âºâ El navegador quedarÃÂ¡ abierto para que el operador realice el pago.")
+            log_callback(f"[Hilo {id_hilo}] 🏁 ¡FLUJO COMPLETADO! Pantalla de pago lista.")
+            log_callback(f"[Hilo {id_hilo}] 🛑 El navegador quedará abierto para que el operador realice el pago.")
 
-            # NotificaciÃÂ³n sonora
+            # Notificación sonora
             try:
                 import winsound
                 winsound.Beep(1000, 300)
@@ -1149,7 +1166,7 @@ def ejecutar_worker_ftth_ecommerce(
             # Mantener el navegador vivo hasta que el operador lo cierre manualmente
             while True:
                 if cancel_event and cancel_event.is_set():
-                    log_callback(f"[Hilo {id_hilo}] Ã°Å¸Å¡Â« CancelaciÃÂ³n manual. Cerrando navegador.")
+                    log_callback(f"[Hilo {id_hilo}] 🚫 Cancelación manual. Cerrando navegador.")
                     try:
                         browser.close()
                     except Exception:
@@ -1157,11 +1174,11 @@ def ejecutar_worker_ftth_ecommerce(
                     break
                 try:
                     if not browser.is_connected() or (page and page.is_closed()):
-                        log_callback(f"[Hilo {id_hilo}] Ã¢âÂ¹Ã¯Â¸Â Navegador cerrado por el operador. Liberando hilo.")
+                        log_callback(f"[Hilo {id_hilo}] ℹ️ Navegador cerrado por el operador. Liberando hilo.")
                         break
                     page.wait_for_timeout(1000)
                 except Exception:
-                    log_callback(f"[Hilo {id_hilo}] Ã¢âÂ¹Ã¯Â¸Â Navegador desconectado. Liberando hilo.")
+                    log_callback(f"[Hilo {id_hilo}] ℹ️ Navegador desconectado. Liberando hilo.")
                     break
 
             return {"exito": True, "error": None, "email": email_generado}
@@ -1170,7 +1187,7 @@ def ejecutar_worker_ftth_ecommerce(
             if timer.current_step:
                 timer.stop_step("Error")
             err_msg = formatear_error_amigable(timer.current_step or "Flujo eCommerce FTTH", e)
-            log_callback(f"[Hilo {id_hilo}] Ã¢ÂÅ Error en {timer.current_step}: {err_msg}")
+            log_callback(f"[Hilo {id_hilo}] ❌ Error en {timer.current_step}: {err_msg}")
 
             # Captura de debug
             if page and not page.is_closed():
@@ -1181,7 +1198,7 @@ def ejecutar_worker_ftth_ecommerce(
                         f"ecom_crash_H{id_hilo}_{int(time.time())}.png"
                     )
                     page.screenshot(path=path_err, timeout=3000)
-                    log_callback(f"[Hilo {id_hilo}] Ã°Å¸âÂ¸ Evidencia de crash: {path_err}")
+                    log_callback(f"[Hilo {id_hilo}] 📸 Evidencia de crash: {path_err}")
                 except Exception:
                     pass
 
@@ -1207,7 +1224,7 @@ def ejecutar_worker_ftth_ecommerce(
             return {"exito": False, "error": err_msg, "email": email_generado}
 
         finally:
-            # Solo cerramos si fue cancelaciÃÂ³n; en ÃÂ©xito el operador cierra manualmente
+            # Solo cerramos si fue cancelación; en éxito el operador cierra manualmente
             if browser and cancel_event and cancel_event.is_set():
                 try:
                     browser.close()
