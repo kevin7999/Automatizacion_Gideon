@@ -591,10 +591,6 @@ class AppGideon(ctk.CTk):
         self.console_ftth.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
         self.txt_log = self.console_ftth.textbox  # Para retrocompatibilidad
 
-        # 3. Componente Stepper
-        self.stepper_ftth = Stepper(self.frame_right, steps=["Login CRM", "Datos CLI", "Dirección", "Plan & Addon", "OTP", "Éxito"])
-        self.stepper_ftth.pack(side="bottom", fill="x", padx=10, pady=(0, 8))
-
         # 1. Card de Cola de Cuentas
         card_cola = ctk.CTkFrame(
             self.frame_right,
@@ -2657,8 +2653,6 @@ class AppGideon(ctk.CTk):
 
         self.cancel_event.clear()
         self.fallidas_tanda_actual.clear()
-        if hasattr(self, 'stepper_ftth'):
-            self.stepper_ftth.reset()
         
         self.estado_hilos.clear()
         for id_hilo, info in self.widgets_monitor_hilos.items():
@@ -2781,8 +2775,8 @@ class AppGideon(ctk.CTk):
         # Sincronizar el Stepper visual con el estado del worker (ejecutar en hilo principal de forma segura)
         def _sync_stepper():
             try:
-                # Determinar cuál stepper usar según el worker actual (simplificado a FTTH por ahora o el activo)
-                stepper = getattr(self, "stepper_ftth", None)
+                # El único stepper activo visualmente es el de eCommerce
+                stepper = getattr(self, "stepper_ott", None)
                 if not stepper: return
                 
                 if estado == "Exito":
