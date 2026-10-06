@@ -149,7 +149,7 @@ class AppGideon(ctk.CTk):
         self.frames_map = {
             "FTTH CRM": self.tab_control,
             "eCommerce B2C": self.tab_ott,
-            "Telemetría": self.tab_reportes,
+            "Historial": self.tab_reportes,
             "Sistema": self.tab_config
         }
 
@@ -196,7 +196,7 @@ class AppGideon(ctk.CTk):
             if hasattr(self, 'lbl_navbar_title'):
                 self.lbl_navbar_title.configure(text=f"Workspace  /  {vista_id}")
             
-        if "Telemetría" in vista_id and hasattr(self, 'cargar_historial_reporte'):
+        if "Historial" in vista_id and hasattr(self, 'cargar_historial_reporte'):
             self.cargar_historial_reporte()
 
     # -------------------------------------------------------------
