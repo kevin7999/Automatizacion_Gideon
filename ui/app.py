@@ -586,9 +586,15 @@ class AppGideon(ctk.CTk):
         self.frame_right = ctk.CTkFrame(self.frame_body, corner_radius=12, fg_color="transparent")
         self.frame_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
+        self.frame_right.grid_columnconfigure(0, weight=1)
+        self.frame_right.grid_rowconfigure(0, weight=1)
+        self.frame_right.grid_rowconfigure(1, weight=0)
+        self.frame_right.grid_rowconfigure(2, weight=0)
+        self.frame_right.grid_rowconfigure(3, weight=1)
+
         # 4. Consola Log Integrada (Empaquetada con prioridad inferior)
         self.console_ftth = ConsoleLog(self.frame_right, title="Terminal Operativa FTTH")
-        self.console_ftth.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
+        self.console_ftth.grid(row=3, column=0, sticky="nsew", pady=0)
         self.txt_log = self.console_ftth.textbox  # Para retrocompatibilidad
 
         # 1. Card de Cola de Cuentas
@@ -599,7 +605,7 @@ class AppGideon(ctk.CTk):
             border_width=1,
             border_color=("#ced4da", "#2c2e33")
         )
-        card_cola.pack(fill="both", expand=True, padx=0, pady=(0, 8))
+        card_cola.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
 
         frame_cola_hdr = ctk.CTkFrame(card_cola, fg_color="transparent")
         frame_cola_hdr.pack(fill="x", padx=12, pady=(8, 4))
@@ -635,7 +641,7 @@ class AppGideon(ctk.CTk):
             border_width=1,
             border_color=("#ced4da", "#2c2e33")
         )
-        card_exec.pack(fill="x", padx=0, pady=(0, 8))
+        card_exec.grid(row=1, column=0, sticky="ew", pady=(0, 8))
 
         # Fila superior: Selector de Modo de Creación (Completo vs Solo Paso 3)
         frame_modo = ctk.CTkFrame(card_exec, fg_color="transparent")
@@ -745,7 +751,7 @@ class AppGideon(ctk.CTk):
 
         # 2.5 Panel de Monitoreo Multihilo en Vivo
         self.frame_monitor_hilos = ctk.CTkScrollableFrame(self.frame_right, corner_radius=10, fg_color="transparent", orientation="horizontal", height=75)
-        self.frame_monitor_hilos.pack(fill="x", padx=0, pady=(0, 8))
+        self.frame_monitor_hilos.grid(row=2, column=0, sticky="ew", pady=(0, 8))
 
     def copiar_log_consola(self):
         try:
@@ -986,17 +992,23 @@ class AppGideon(ctk.CTk):
         self.frame_ott_right = ctk.CTkFrame(self.frame_ott_body, corner_radius=12, fg_color="transparent")
         self.frame_ott_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
+        self.frame_ott_right.grid_columnconfigure(0, weight=1)
+        self.frame_ott_right.grid_rowconfigure(0, weight=1)
+        self.frame_ott_right.grid_rowconfigure(1, weight=0)
+        self.frame_ott_right.grid_rowconfigure(2, weight=0)
+        self.frame_ott_right.grid_rowconfigure(3, weight=1)
+
         # 4. Consola Log Integrada OTT
         self.console_ott = ConsoleLog(self.frame_ott_right, title="Terminal Operativa eCommerce")
-        self.console_ott.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
+        self.console_ott.grid(row=3, column=0, sticky="nsew", pady=0)
         self.txt_log_ott = self.console_ott.textbox  # Para retrocompatibilidad
 
         # 3. Componente Stepper OTT
         self.stepper_ott = Stepper(self.frame_ott_right, steps=["Login", "Suscripción", "Ubicación", "Comprador", "OTP", "Éxito"])
-        self.stepper_ott.pack(side="bottom", fill="x", padx=10, pady=(0, 8))
+        self.stepper_ott.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 8))
 
         card_cola = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
-        card_cola.pack(fill="both", expand=True, padx=0, pady=(0, 8))
+        card_cola.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
 
         frame_cola_hdr = ctk.CTkFrame(card_cola, fg_color="transparent")
         frame_cola_hdr.pack(fill="x", padx=12, pady=(8, 4))
@@ -1009,7 +1021,7 @@ class AppGideon(ctk.CTk):
 
         # Acciones
         card_exec = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
-        card_exec.pack(fill="x", padx=0, pady=(0, 8))
+        card_exec.grid(row=1, column=0, sticky="ew", pady=(0, 8))
 
         frame_exec_inner = ctk.CTkFrame(card_exec, fg_color="transparent")
         frame_exec_inner.pack(fill="x", padx=12, pady=8)
