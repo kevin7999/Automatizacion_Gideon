@@ -37,25 +37,29 @@ class Sidebar(ctk.CTkFrame):
         self.crear_boton("FTTH Masivo", "FTTH Masivo")
         self.crear_boton("OTT Cuentas", "OTT Cuentas")
         self.crear_boton("Telemetría", "Telemetría")
-        self.crear_boton("Sistema", "Sistema")
         
         # --- Espaciador ---
         spacer = ctk.CTkFrame(self, fg_color="transparent")
         spacer.pack(fill="both", expand=True)
         
-        # --- Footer: Estado del Sistema ---
+        # --- Footer: Configuración ---
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.footer_frame.pack(fill="x", side="bottom", pady=15, padx=15)
+        self.footer_frame.pack(fill="x", side="bottom", pady=15, padx=0)
         
-        # Badge de QA
-        self.badge_qa = ctk.CTkFrame(self.footer_frame, fg_color=BG_CARD, corner_radius=8, border_width=1, border_color=BORDER_SUBTLE)
-        self.badge_qa.pack(fill="x")
-        
-        self.lbl_dot = ctk.CTkLabel(self.badge_qa, text="●", text_color=STATUS_SUCCESS, font=("Arial", 16))
-        self.lbl_dot.pack(side="left", padx=(10, 5), pady=5)
-        
-        self.lbl_status = ctk.CTkLabel(self.badge_qa, text="QA • Conectado", text_color=TEXT_SECONDARY, font=FONT_MINI)
-        self.lbl_status.pack(side="left", padx=(0, 10), pady=5)
+        btn_config = ctk.CTkButton(
+            self.footer_frame,
+            text="  Configuración",
+            anchor="w",
+            font=FONT_BODY_BOLD,
+            fg_color="transparent",
+            hover_color=BG_CARD,
+            text_color=TEXT_SECONDARY,
+            height=40,
+            corner_radius=6,
+            command=lambda: self._click_interno("Sistema")
+        )
+        btn_config.pack(fill="x", padx=10, pady=2)
+        self.nav_buttons["Sistema"] = btn_config
 
     def crear_boton(self, raw_id: str, display_text: str):
         """Crea un botón de navegación. raw_id es el string exacto usado en el switch de vistas."""
