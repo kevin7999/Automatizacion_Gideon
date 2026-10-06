@@ -100,6 +100,24 @@ class AppGideon(ctk.CTk):
         self.main_content = ctk.CTkFrame(self, fg_color=BG_APP, corner_radius=0)
         self.main_content.grid(row=0, column=1, sticky="nsew")
         
+        # --- Header Global del Contenedor Principal ---
+        self.header_content = ctk.CTkFrame(self.main_content, fg_color="transparent", height=40)
+        self.header_content.pack(fill="x", padx=10, pady=(10, 0))
+        
+        self.sidebar_is_visible = True
+        self.btn_toggle_sidebar = ctk.CTkButton(
+            self.header_content,
+            text="☰",
+            width=35,
+            height=35,
+            fg_color="transparent",
+            hover_color=BG_CARD,
+            text_color="#ffffff",
+            font=("Arial", 20, "bold"),
+            command=self.toggle_sidebar
+        )
+        self.btn_toggle_sidebar.pack(side="left")
+        
         # Frames para cada "Pestaña" (ahora Vistas)
         self.tab_control = ctk.CTkFrame(self.main_content, fg_color="transparent")
         self.tab_ott = ctk.CTkFrame(self.main_content, fg_color="transparent")
@@ -127,6 +145,15 @@ class AppGideon(ctk.CTk):
         # Activar la primera vista
         self.sidebar.set_active("FTTH Masivo")
         self.al_cambiar_pestana("FTTH Masivo")
+
+    def toggle_sidebar(self):
+        """Oculta o muestra dinámicamente el Sidebar manipulando el layout grid."""
+        if self.sidebar_is_visible:
+            self.sidebar.grid_remove()
+            self.sidebar_is_visible = False
+        else:
+            self.sidebar.grid(row=0, column=0, sticky="nsew")
+            self.sidebar_is_visible = True
 
     def validar_cantidad_input(self, text):
         if text == "": return True
