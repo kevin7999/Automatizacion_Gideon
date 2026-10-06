@@ -1,0 +1,12 @@
+{
+    "prefijo_email": "CAMtestO_Fibrastest",
+    "prefijo_email_ott": "CAMBIALOT_OTT",
+    "usuario_login": "TestSebastian",
+    "password_login": "I4FiJJ02aPY0af2",
+    "hilos_simultaneos": 2,
+    "hilos_simultaneos_ott": 1,
+    "modo_headless": false,
+    "dominio_email": "maildrop.cc",
+    "tema_apariencia": "Dark",
+    "modo_ejecucion": "completo"
+}

@@ -11,7 +11,10 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 from tkinter import filedialog, messagebox, ttk
 from ui.calendario import ModernCalendar
-
+from ui.theme import *
+from ui.components.sidebar import Sidebar
+from ui.components.stepper import Stepper
+from ui.components.console_log import ConsoleLog
 from core.config import (
     CONFIG_FILE, DEFAULT_CONFIG, cargar_configuracion, guardar_configuracion
 )
@@ -85,26 +88,33 @@ class AppGideon(ctk.CTk):
         self.widgets_monitor_hilos = {}
         self.after(1000, self.actualizar_cronometros_ui)
 
-        # --- SISTEMA DE PESTAÑAS (TABVIEW ESTILO SIMPLETV) ---
-        self.tabview = ctk.CTkTabview(
-            self,
-            command=self.al_cambiar_pestana,
-            corner_radius=12,
-            fg_color=("#f8f9fa", "#141517"),
-            segmented_button_selected_color="#ff7800",
-            segmented_button_selected_hover_color="#e66a00",
-            segmented_button_unselected_color=("#e9ecef", "#212529"),
-            segmented_button_unselected_hover_color=("#dee2e6", "#343a40"),
-            text_color=("#212529", "#ffffff")
-        )
-        self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- SISTEMA DE NAVEGACIÓN Y CONTENIDO (G.I.D.E.O.N. 4.0) ---
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        
+        # Sidebar a la izquierda
+        self.sidebar = Sidebar(self, on_nav_click=self.al_cambiar_pestana)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        
+        # Contenedor principal a la derecha
+        self.main_content = ctk.CTkFrame(self, fg_color=BG_APP, corner_radius=0)
+        self.main_content.grid(row=0, column=1, sticky="nsew")
+        
+        # Frames para cada "Pestaña" (ahora Vistas)
+        self.tab_control = ctk.CTkFrame(self.main_content, fg_color="transparent")
+        self.tab_ott = ctk.CTkFrame(self.main_content, fg_color="transparent")
+        self.tab_reportes = ctk.CTkFrame(self.main_content, fg_color="transparent")
+        self.tab_config = ctk.CTkFrame(self.main_content, fg_color="transparent")
+        
+        # Diccionario para controlar el enrutamiento
+        self.frames_map = {
+            "FTTH Masivo": self.tab_control,
+            "OTT Cuentas": self.tab_ott,
+            "Telemetría": self.tab_reportes,
+            "Sistema": self.tab_config
+        }
 
-        self.tab_control = self.tabview.add("Centro de Control")
-        self.tab_ott = self.tabview.add("eCommerce B2C")
-        self.tab_reportes = self.tabview.add("Historial & Reportes")
-        self.tab_config = self.tabview.add("Configuración")
-
-        # Construir cada pestaña
+        # Construir cada vista
         self.build_tab_control()
         self.build_tab_ott()
         self.build_tab_reportes()
@@ -113,10 +123,21 @@ class AppGideon(ctk.CTk):
         # Inicializar UI y cargar catálogo visual por defecto
         self.recargar_catalogo_ui()
         self.filtrar_planes()
+        
+        # Activar la primera vista
+        self.sidebar.set_active("FTTH Masivo")
+        self.al_cambiar_pestana("FTTH Masivo")
 
-    def al_cambiar_pestana(self):
-        pestana_actual = self.tabview.get()
-        if "Historial" in pestana_actual and hasattr(self, 'cargar_historial_reporte'):
+    def al_cambiar_pestana(self, vista_id):
+        # Ocultar todos los frames
+        for frame in self.frames_map.values():
+            frame.pack_forget()
+            
+        # Mostrar el frame solicitado
+        if vista_id in self.frames_map:
+            self.frames_map[vista_id].pack(fill="both", expand=True, padx=10, pady=10)
+            
+        if "Telemetría" in vista_id and hasattr(self, 'cargar_historial_reporte'):
             self.cargar_historial_reporte()
 
     # -------------------------------------------------------------
@@ -660,68 +681,14 @@ class AppGideon(ctk.CTk):
         self.frame_monitor_hilos = ctk.CTkScrollableFrame(self.frame_right, corner_radius=10, fg_color="transparent", orientation="horizontal", height=75)
         self.frame_monitor_hilos.pack(fill="x", padx=0, pady=(0, 8))
 
-        # 3. Card de Consola de Monitoreo Pro (Sólo lectura)
-        card_consola = ctk.CTkFrame(
-            self.frame_right,
-            corner_radius=10,
-            fg_color=("#ffffff", "#1a1b1e"),
-            border_width=1,
-            border_color=("#ced4da", "#2c2e33")
-        )
-        card_consola.pack(fill="both", expand=True, padx=0, pady=0)
-
-        frame_consola_hdr = ctk.CTkFrame(card_consola, fg_color="transparent")
-        frame_consola_hdr.pack(fill="x", padx=12, pady=(8, 4))
-
-        ctk.CTkLabel(
-            frame_consola_hdr,
-            text="💻 Consola de Monitoreo en Tiempo Real",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#212529", "#f8f9fa")
-        ).pack(side="left")
-
-        self.lbl_console_status = ctk.CTkLabel(
-            frame_consola_hdr,
-            text="🟢 En Línea",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("#2b8a3e", "#51cf66")
-        )
-        self.lbl_console_status.pack(side="left", padx=(10, 0))
-
-        ctk.CTkButton(
-            frame_consola_hdr,
-            text="🧹 Limpiar",
-            width=65,
-            height=22,
-            command=self.limpiar_log_consola,
-            fg_color=("#e9ecef", "#2b2d31"),
-            hover_color=("#dee2e6", "#343a40"),
-            text_color=("#212529", "#ffffff"),
-            font=ctk.CTkFont(size=10, weight="bold")
-        ).pack(side="right", padx=(4, 0))
-
-        ctk.CTkButton(
-            frame_consola_hdr,
-            text="📋 Copiar",
-            width=60,
-            height=22,
-            command=self.copiar_log_consola,
-            fg_color=("#e9ecef", "#2b2d31"),
-            hover_color=("#dee2e6", "#343a40"),
-            text_color=("#212529", "#ffffff"),
-            font=ctk.CTkFont(size=10, weight="bold")
-        ).pack(side="right")
-
-        self.txt_log = ctk.CTkTextbox(
-            card_consola,
-            height=150,
-            fg_color=("#18191c", "#0d0e11"),
-            text_color="#ff922b",
-            font=ctk.CTkFont(family="monospace", size=11),
-            corner_radius=6
-        )
-        self.txt_log.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        self.txt_log.configure(state="disabled")
+        # 3. Componente Stepper
+        self.stepper_ftth = Stepper(self.frame_right, steps=["Login CRM", "Datos CLI", "Dirección", "Plan & Addon", "OTP", "Éxito"])
+        self.stepper_ftth.pack(fill="x", padx=10, pady=(0, 8))
+        
+        # 4. Consola Log Integrada
+        self.console_ftth = ConsoleLog(self.frame_right, title="Terminal Operativa FTTH")
+        self.console_ftth.pack(fill="both", expand=True, padx=0, pady=0)
+        self.txt_log = self.console_ftth.textbox  # Para retrocompatibilidad
 
     def copiar_log_consola(self):
         try:
@@ -734,9 +701,7 @@ class AppGideon(ctk.CTk):
             self.log_salida(f"⚠️ Error al copiar log: {e}")
 
     def limpiar_log_consola(self):
-        self.txt_log.configure(state="normal")
-        self.txt_log.delete("1.0", "end")
-        self.txt_log.configure(state="disabled")
+        self.console_ftth.clear()
         self.log_salida("🧹 Consola reiniciada.")
 
     def crear_card_kpi(self, parent, titulo, valor_inicial, color_acento, icono="📦", imagen_path=None):
@@ -1019,20 +984,14 @@ class AppGideon(ctk.CTk):
         )
         self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
 
-        # 3. Card de Consola de Monitoreo Pro (Sólo lectura) para OTT
-        card_consola_ott = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, border_color=("#ced4da", "#2c2e33"), border_width=1, fg_color=("#ffffff", "#1a1b1e"))
-        card_consola_ott.pack(fill="both", expand=True, padx=0, pady=(0, 0))
-
-        frame_consola_hdr_ott = ctk.CTkFrame(card_consola_ott, fg_color="transparent")
-        frame_consola_hdr_ott.pack(fill="x", padx=12, pady=(8, 4))
-
-        ctk.CTkLabel(frame_consola_hdr_ott, text="🖥️ Consola de Monitoreo eCommerce", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
-
-        ctk.CTkButton(frame_consola_hdr_ott, text="🧹 Limpiar", width=65, height=22, command=self.limpiar_log_consola_ott, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11)).pack(side="right", padx=(5, 0))
-
-        self.txt_log_ott = ctk.CTkTextbox(card_consola_ott, height=130, fg_color=("#18191c", "#0d0e11"), text_color="#20c997", font=ctk.CTkFont(family="Consolas", size=11), corner_radius=6, border_width=1, border_color=("#495057", "#2c2e33"))
-        self.txt_log_ott.pack(fill="both", expand=True, padx=12, pady=(0, 12))
-        self.txt_log_ott.configure(state="disabled")
+        # 3. Componente Stepper OTT
+        self.stepper_ott = Stepper(self.frame_ott_right, steps=["Login", "Suscripción", "Ubicación", "Comprador", "OTP", "Éxito"])
+        self.stepper_ott.pack(fill="x", padx=10, pady=(0, 8))
+        
+        # 4. Consola Log Integrada OTT
+        self.console_ott = ConsoleLog(self.frame_ott_right, title="Terminal Operativa eCommerce OTT")
+        self.console_ott.pack(fill="both", expand=True, padx=0, pady=0)
+        self.txt_log_ott = self.console_ott.textbox  # Para retrocompatibilidad
 
         # Refrescar vista por defecto
         self.refrescar_vista_cola_ott()
@@ -1054,10 +1013,7 @@ class AppGideon(ctk.CTk):
         from datetime import datetime
         hora = datetime.now().strftime("%H:%M:%S")
         def _log():
-            self.txt_log_ott.configure(state="normal")
-            self.txt_log_ott.insert("end", f"[{hora}] {mensaje}\n")
-            self.txt_log_ott.see("end")
-            self.txt_log_ott.configure(state="disabled")
+            self.console_ott.write_log(mensaje)
         self.after(0, _log)
         try:
             print(f"[OTT] [{hora}] {mensaje}")
@@ -1065,9 +1021,7 @@ class AppGideon(ctk.CTk):
             print(f"[OTT] [{hora}] {mensaje.encode('ascii', 'ignore').decode('ascii')}")
 
     def limpiar_log_consola_ott(self):
-        self.txt_log_ott.configure(state="normal")
-        self.txt_log_ott.delete("1.0", "end")
-        self.txt_log_ott.configure(state="disabled")
+        self.console_ott.clear()
         self.log_salida_ott("🧹 Consola OTT reiniciada.")
 
     def refrescar_vista_cola_ott(self):
@@ -2599,11 +2553,7 @@ class AppGideon(ctk.CTk):
 
     def log_salida(self, mensaje):
         def _log():
-            timestamp = time.strftime("[%H:%M:%S] ")
-            self.txt_log.configure(state="normal")
-            self.txt_log.insert("end", f"{timestamp}{mensaje}\n")
-            self.txt_log.see("end")
-            self.txt_log.configure(state="disabled")
+            self.console_ftth.write_log(mensaje)
         self.after(0, _log)
 
     def iniciar_proceso(self):

@@ -1,24 +1,42 @@
-# 🎨 Constantes de Diseño y Estilo Visual (Simplefibra / Simpletv)
+# 🎨 Constantes de Diseño y Estilo Visual (GIDEON 4.0 - Obsidian & SimpleTV)
 
-COLOR_PRIMARY = "#ff7800"
-COLOR_PRIMARY_HOVER = "#e66a00"
+# --- FONDOS PRINCIPALES (OBSIDIAN DARK) ---
+BG_APP = "#0D0E11"          # Fondo general oscuro de alta fidelidad
+BG_SIDEBAR = "#121418"      # Sidebar contrastado
+BG_CARD = "#181A20"         # Tarjetas y contenedores elevados
+BG_INPUT = "#20232B"        # Campos de texto y selectores
+BORDER_SUBTLE = "#2A2E39"   # Bordes finos de 1px
 
-COLOR_BG_LIGHT = "#f8f9fa"
-COLOR_BG_DARK = "#141517"
+# --- COLORES PRIMARIOS (SIMPLETV ORANGE) ---
+PRIMARY_ORANGE = "#FF7800"
+PRIMARY_HOVER = "#E66A00"
+PRIMARY_GLOW = "#FFA94D"
 
-COLOR_CARD_LIGHT = "#ffffff"
-COLOR_CARD_DARK = "#1e1f22"
+# --- COLORES DE ESTADO (SEMÁFORO Y ALERTAS) ---
+STATUS_SUCCESS = "#10B981"  # Verde esmeralda
+STATUS_ERROR = "#EF4444"    # Rojo carmesí
+STATUS_WARNING = "#F59E0B"  # Ámbar OTP
+STATUS_INFO = "#3B82F6"     # Azul cian
 
-COLOR_TAB_UNSELECTED = ("#e9ecef", "#212529")
-COLOR_TAB_UNSELECTED_HOVER = ("#dee2e6", "#343a40")
+# --- TEXTOS ---
+TEXT_PRIMARY = "#FFFFFF"
+TEXT_SECONDARY = "#9CA3AF"  # Gris claro (mutado)
+TEXT_DISABLED = "#4B5563"
 
-COLOR_TEXT = ("#212529", "#ffffff")
-COLOR_MUTED = ("#868e96", "#adb5bd")
+# --- TIPOGRAFÍA (Tokens de Escala) ---
+# Se asume disponibilidad en Windows (Segoe UI) o fallback estándar
+FONT_TITLE = ("Segoe UI Semibold", 18)
+FONT_SUBTITLE = ("Segoe UI Semibold", 14)
+FONT_BODY = ("Segoe UI", 12)
+FONT_BODY_BOLD = ("Segoe UI Semibold", 12)
+FONT_CONSOLE = ("Consolas", 11)
+FONT_CONSOLE_BOLD = ("Consolas", 11, "bold")
+FONT_MINI = ("Segoe UI", 10)
 
-# Paletas de métricas KPI
+# --- PALETAS DE KPIs (Compatible con diseño viejo para evitar rupturas) ---
 KPI_COLORS = {
-    "total": ("#d9480f", "#ff7800"),
-    "ejecucion": ("#c2410c", "#ffa94d"),
-    "exito": ("#2b8a3e", "#51cf66"),
-    "fallo": ("#c92a2a", "#ff6b6b")
+    "total": (PRIMARY_ORANGE, PRIMARY_ORANGE),
+    "ejecucion": (STATUS_WARNING, STATUS_WARNING),
+    "exito": (STATUS_SUCCESS, STATUS_SUCCESS),
+    "fallo": (STATUS_ERROR, STATUS_ERROR)
 }
