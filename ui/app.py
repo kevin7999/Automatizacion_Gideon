@@ -586,6 +586,15 @@ class AppGideon(ctk.CTk):
         self.frame_right = ctk.CTkFrame(self.frame_body, corner_radius=12, fg_color="transparent")
         self.frame_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
+        # 4. Consola Log Integrada (Empaquetada con prioridad inferior)
+        self.console_ftth = ConsoleLog(self.frame_right, title="Terminal Operativa FTTH")
+        self.console_ftth.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
+        self.txt_log = self.console_ftth.textbox  # Para retrocompatibilidad
+
+        # 3. Componente Stepper
+        self.stepper_ftth = Stepper(self.frame_right, steps=["Login CRM", "Datos CLI", "Dirección", "Plan & Addon", "OTP", "Éxito"])
+        self.stepper_ftth.pack(side="bottom", fill="x", padx=10, pady=(0, 8))
+
         # 1. Card de Cola de Cuentas
         card_cola = ctk.CTkFrame(
             self.frame_right,
@@ -741,15 +750,6 @@ class AppGideon(ctk.CTk):
         # 2.5 Panel de Monitoreo Multihilo en Vivo
         self.frame_monitor_hilos = ctk.CTkScrollableFrame(self.frame_right, corner_radius=10, fg_color="transparent", orientation="horizontal", height=75)
         self.frame_monitor_hilos.pack(fill="x", padx=0, pady=(0, 8))
-
-        # 3. Componente Stepper
-        self.stepper_ftth = Stepper(self.frame_right, steps=["Login CRM", "Datos CLI", "Dirección", "Plan & Addon", "OTP", "Éxito"])
-        self.stepper_ftth.pack(fill="x", padx=10, pady=(0, 8))
-        
-        # 4. Consola Log Integrada
-        self.console_ftth = ConsoleLog(self.frame_right, title="Terminal Operativa FTTH")
-        self.console_ftth.pack(fill="both", expand=True, padx=0, pady=0)
-        self.txt_log = self.console_ftth.textbox  # Para retrocompatibilidad
 
     def copiar_log_consola(self):
         try:
@@ -990,6 +990,15 @@ class AppGideon(ctk.CTk):
         self.frame_ott_right = ctk.CTkFrame(self.frame_ott_body, corner_radius=12, fg_color="transparent")
         self.frame_ott_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
+        # 4. Consola Log Integrada OTT
+        self.console_ott = ConsoleLog(self.frame_ott_right, title="Terminal Operativa eCommerce")
+        self.console_ott.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
+        self.txt_log_ott = self.console_ott.textbox  # Para retrocompatibilidad
+
+        # 3. Componente Stepper OTT
+        self.stepper_ott = Stepper(self.frame_ott_right, steps=["Login", "Suscripción", "Ubicación", "Comprador", "OTP", "Éxito"])
+        self.stepper_ott.pack(side="bottom", fill="x", padx=10, pady=(0, 8))
+
         card_cola = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
         card_cola.pack(fill="both", expand=True, padx=0, pady=(0, 8))
 
@@ -1046,15 +1055,6 @@ class AppGideon(ctk.CTk):
             height=30, width=100, state="disabled"
         )
         self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
-
-        # 3. Componente Stepper OTT
-        self.stepper_ott = Stepper(self.frame_ott_right, steps=["Login", "Suscripción", "Ubicación", "Comprador", "OTP", "Éxito"])
-        self.stepper_ott.pack(fill="x", padx=10, pady=(0, 8))
-        
-        # 4. Consola Log Integrada OTT
-        self.console_ott = ConsoleLog(self.frame_ott_right, title="Terminal Operativa eCommerce")
-        self.console_ott.pack(fill="both", expand=True, padx=0, pady=0)
-        self.txt_log_ott = self.console_ott.textbox  # Para retrocompatibilidad
 
         # Refrescar vista por defecto
         self.refrescar_vista_cola_ott()
