@@ -100,23 +100,44 @@ class AppGideon(ctk.CTk):
         self.main_content = ctk.CTkFrame(self, fg_color=BG_APP, corner_radius=0)
         self.main_content.grid(row=0, column=1, sticky="nsew")
         
-        # --- Header Global del Contenedor Principal ---
-        self.header_content = ctk.CTkFrame(self.main_content, fg_color="transparent", height=40)
-        self.header_content.pack(fill="x", padx=10, pady=(10, 0))
-        
+        # --- TOP NAVBAR (MODERNO SAAS) ---
+        self.top_navbar = ctk.CTkFrame(self.main_content, fg_color=BG_CARD, height=54, corner_radius=0)
+        self.top_navbar.pack(fill="x")
+        self.top_navbar.pack_propagate(False)
+
         self.sidebar_is_visible = True
         self.btn_toggle_sidebar = ctk.CTkButton(
-            self.header_content,
+            self.top_navbar,
             text="☰",
-            width=35,
-            height=35,
+            width=40,
+            height=40,
+            corner_radius=8,
             fg_color="transparent",
-            hover_color=BG_CARD,
-            text_color="#ffffff",
-            font=("Arial", 20, "bold"),
+            hover_color=BG_INPUT,
+            text_color=TEXT_PRIMARY,
+            font=("Arial", 20),
             command=self.toggle_sidebar
         )
-        self.btn_toggle_sidebar.pack(side="left")
+        self.btn_toggle_sidebar.pack(side="left", padx=(15, 10), pady=7)
+
+        # Breadcrumb / Título dinámico
+        self.lbl_navbar_title = ctk.CTkLabel(
+            self.top_navbar,
+            text="Workspace  /  Dashboard",
+            font=FONT_SUBTITLE,
+            text_color=TEXT_SECONDARY
+        )
+        self.lbl_navbar_title.pack(side="left", padx=5)
+
+        # Indicador de Entorno a la derecha
+        self.badge_env = ctk.CTkFrame(self.top_navbar, fg_color=BG_INPUT, border_width=1, border_color=BORDER_SUBTLE, corner_radius=12)
+        self.badge_env.pack(side="right", padx=(15, 20), pady=12)
+        
+        ctk.CTkLabel(self.badge_env, text="●", text_color=STATUS_SUCCESS, font=("Arial", 10)).pack(side="left", padx=(10, 4))
+        ctk.CTkLabel(self.badge_env, text="Entorno QA", text_color=TEXT_PRIMARY, font=("Arial", 10, "bold")).pack(side="left", padx=(0, 10))
+
+        # Línea separadora sutil
+        ctk.CTkFrame(self.main_content, height=1, fg_color=BORDER_SUBTLE).pack(fill="x")
         
         # Frames para cada "Pestaña" (ahora Vistas)
         self.tab_control = ctk.CTkFrame(self.main_content, fg_color="transparent")
@@ -172,6 +193,8 @@ class AppGideon(ctk.CTk):
         # Mostrar el frame solicitado
         if vista_id in self.frames_map:
             self.frames_map[vista_id].pack(fill="both", expand=True, padx=10, pady=10)
+            if hasattr(self, 'lbl_navbar_title'):
+                self.lbl_navbar_title.configure(text=f"Workspace  /  {vista_id}")
             
         if "Telemetría" in vista_id and hasattr(self, 'cargar_historial_reporte'):
             self.cargar_historial_reporte()
