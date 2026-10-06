@@ -128,6 +128,15 @@ class AppGideon(ctk.CTk):
         self.sidebar.set_active("FTTH Masivo")
         self.al_cambiar_pestana("FTTH Masivo")
 
+    def validar_cantidad_input(self, text):
+        if text == "": return True
+        if not text.isdigit(): return False
+        try:
+            val = int(text)
+            return val <= 100
+        except ValueError:
+            return False
+
     def al_cambiar_pestana(self, vista_id):
         # Ocultar todos los frames
         for frame in self.frames_map.values():
@@ -486,6 +495,7 @@ class AppGideon(ctk.CTk):
         frame_cant.pack(fill="x", padx=12, pady=(0, 10))
 
         ctk.CTkLabel(frame_cant, text="Cantidad de cuentas:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+        vcmd = (self.register(self.validar_cantidad_input), '%P')
         self.spn_cantidad = ctk.CTkEntry(
             frame_cant,
             placeholder_text="1",
@@ -495,6 +505,7 @@ class AppGideon(ctk.CTk):
             border_color=("#ced4da", "#373a40"),
             text_color=("#212529", "#f8f9fa")
         )
+        self.spn_cantidad._entry.configure(validate="key", validatecommand=vcmd)
         self.spn_cantidad.insert(0, "1")
         self.spn_cantidad.pack(side="right")
 
@@ -912,7 +923,9 @@ class AppGideon(ctk.CTk):
         frame_cant = ctk.CTkFrame(card_form, fg_color="transparent")
         frame_cant.pack(fill="x", padx=12, pady=(10, 10))
         ctk.CTkLabel(frame_cant, text="Cantidad de cuentas:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left")
+        vcmd_ott = (self.register(self.validar_cantidad_input), '%P')
         self.spn_cantidad_ott = ctk.CTkEntry(frame_cant, placeholder_text="1", width=65, height=28, fg_color=("#ffffff", "#25262b"), border_color=("#ced4da", "#373a40"), text_color=("#212529", "#f8f9fa"))
+        self.spn_cantidad_ott._entry.configure(validate="key", validatecommand=vcmd_ott)
         self.spn_cantidad_ott.insert(0, "1")
         self.spn_cantidad_ott.pack(side="right")
 
@@ -1119,7 +1132,7 @@ class AppGideon(ctk.CTk):
 
         if len(self.matriz_cuentas_ott) + cant > 100:
             cant = 100 - len(self.matriz_cuentas_ott)
-            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola OTT. Se añadirán hasta llegar al tope.")
+            messagebox.showinfo("Límite Alcanzado", "Hay un límite estricto de 100 cuentas en cola OTT. Se añadirán solo las necesarias para llenar el cupo disponible.")
             if cant <= 0: return
 
         tipo_doc_ott = self.cmb_doc_ott.get()
@@ -1156,7 +1169,7 @@ class AppGideon(ctk.CTk):
             
         if len(self.matriz_cuentas) + cant > 100:
             cant = 100 - len(self.matriz_cuentas)
-            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola. Se añadirán hasta llegar al tope.")
+            messagebox.showinfo("Límite Alcanzado", "Hay un límite estricto de 100 cuentas en cola. Se añadirán solo las necesarias para llenar el cupo disponible.")
             if cant <= 0: return
 
         ubicacion_ecom = self.cmb_ubicacion_ecom.get()
@@ -2341,7 +2354,7 @@ class AppGideon(ctk.CTk):
 
         if len(self.matriz_cuentas) + cant > 100:
             cant = 100 - len(self.matriz_cuentas)
-            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola. Se añadirán hasta llegar al tope.")
+            messagebox.showinfo("Límite Alcanzado", "Hay un límite estricto de 100 cuentas en cola. Se añadirán solo las necesarias para llenar el cupo disponible.")
             if cant <= 0: return
 
         for _ in range(cant):
@@ -2373,7 +2386,7 @@ class AppGideon(ctk.CTk):
         ubicacion = self.cmb_ubicacion.get()
         aplicar_promo = bool(self.chk_aplicar_promo.get()) if hasattr(self, 'chk_aplicar_promo') else True
         if len(self.matriz_cuentas) + 2 > 100:
-            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola. Libera espacio antes de agregar el par mixto.")
+            messagebox.showinfo("Límite Alcanzado", "Hay un límite estricto de 100 cuentas en cola. Libera espacio antes de agregar un nuevo par mixto.")
             return
             
         par = [
