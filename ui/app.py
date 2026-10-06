@@ -1225,6 +1225,8 @@ class AppGideon(ctk.CTk):
         self.btn_cancelar_ott.configure(state="normal")
         self.cancel_event_ott.clear()
         self.fallidas_tanda_actual_ott.clear()
+        if hasattr(self, 'stepper_ott'):
+            self.stepper_ott.reset()
         
         self.log_salida_ott(f"🚀 Iniciando procesamiento masivo de {len(self.matriz_cuentas_ott)} cuentas OTT...")
         threading.Thread(target=self.ejecutar_hilos_ott, daemon=True).start()
@@ -2563,6 +2565,8 @@ class AppGideon(ctk.CTk):
 
         self.cancel_event.clear()
         self.fallidas_tanda_actual.clear()
+        if hasattr(self, 'stepper_ftth'):
+            self.stepper_ftth.reset()
         
         self.estado_hilos.clear()
         for id_hilo, info in self.widgets_monitor_hilos.items():
@@ -2681,6 +2685,37 @@ class AppGideon(ctk.CTk):
             "TiempoInicio": inicio_step_timestamp,
             "Estado": estado
         }
+        
+        # Sincronizar el Stepper visual con el estado del worker (ejecutar en hilo principal de forma segura)
+        def _sync_stepper():
+            try:
+                # Determinar cuál stepper usar según el worker actual (simplificado a FTTH por ahora o el activo)
+                stepper = getattr(self, "stepper_ftth", None)
+                if not stepper: return
+                
+                if estado == "Exito":
+                    stepper.set_step(5, "success")
+                elif estado == "Error":
+                    pass # Se manejaría globalmente o dejaría el último en activo
+                else:
+                    paso_low = paso_actual.lower()
+                    if "paso 0" in paso_low or "login" in paso_low:
+                        stepper.set_step(0, "active")
+                    elif "paso 1" in paso_low or "datos" in paso_low:
+                        stepper.set_step(0, "success")
+                        stepper.set_step(1, "active")
+                    elif "paso 2" in paso_low or "direcci" in paso_low:
+                        stepper.set_step(1, "success")
+                        stepper.set_step(2, "active")
+                    elif "paso 3" in paso_low or "paso 4" in paso_low or "plan" in paso_low or "promocion" in paso_low:
+                        stepper.set_step(2, "success")
+                        stepper.set_step(3, "active")
+                    elif "paso 5" in paso_low or "otp" in paso_low:
+                        stepper.set_step(3, "success")
+                        stepper.set_step(4, "active")
+            except Exception:
+                pass
+        self.after(0, _sync_stepper)
         # Crear widget de la tarjeta si no existe
         if id_hilo not in self.widgets_monitor_hilos and hasattr(self, 'frame_monitor_hilos'):
             card = ctk.CTkFrame(self.frame_monitor_hilos, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"), corner_radius=6)

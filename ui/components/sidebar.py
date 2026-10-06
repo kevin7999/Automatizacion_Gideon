@@ -34,10 +34,10 @@ class Sidebar(ctk.CTkFrame):
         self.lbl_sub.pack(anchor="w", pady=(0, 0))
         
         # --- Botones de Navegación ---
-        self.crear_boton("Centro de Control", "FTTH Masivo")
-        self.crear_boton("eCommerce B2C", "OTT Cuentas")
-        self.crear_boton("Historial & Reportes", "Telemetría")
-        self.crear_boton("Configuración", "Sistema")
+        self.crear_boton("FTTH Masivo", "FTTH Masivo")
+        self.crear_boton("OTT Cuentas", "OTT Cuentas")
+        self.crear_boton("Telemetría", "Telemetría")
+        self.crear_boton("Sistema", "Sistema")
         
         # --- Espaciador ---
         spacer = ctk.CTkFrame(self, fg_color="transparent")
