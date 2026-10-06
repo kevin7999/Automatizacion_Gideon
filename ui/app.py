@@ -1117,6 +1117,11 @@ class AppGideon(ctk.CTk):
         except ValueError:
             cant = 1
 
+        if len(self.matriz_cuentas_ott) + cant > 100:
+            cant = 100 - len(self.matriz_cuentas_ott)
+            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola OTT. Se añadirán hasta llegar al tope.")
+            if cant <= 0: return
+
         tipo_doc_ott = self.cmb_doc_ott.get()
         tipo_doc_eng = "Venezuelan" if tipo_doc_ott == "Venezolano" else ("Foreigner" if tipo_doc_ott == "Extranjero" else "Passport")
         ubicacion_ott = self.cmb_ubicacion_ott.get()
@@ -1148,6 +1153,11 @@ class AppGideon(ctk.CTk):
             cant = int(self.spn_cantidad_ott.get())
         except ValueError:
             cant = 1
+            
+        if len(self.matriz_cuentas) + cant > 100:
+            cant = 100 - len(self.matriz_cuentas)
+            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola. Se añadirán hasta llegar al tope.")
+            if cant <= 0: return
 
         ubicacion_ecom = self.cmb_ubicacion_ecom.get()
         for _ in range(cant):
@@ -2329,6 +2339,11 @@ class AppGideon(ctk.CTk):
         except ValueError:
             cant = 1
 
+        if len(self.matriz_cuentas) + cant > 100:
+            cant = 100 - len(self.matriz_cuentas)
+            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola. Se añadirán hasta llegar al tope.")
+            if cant <= 0: return
+
         for _ in range(cant):
             item = {
                 "tipo_persona": tipo_persona, 
@@ -2357,6 +2372,10 @@ class AppGideon(ctk.CTk):
 
         ubicacion = self.cmb_ubicacion.get()
         aplicar_promo = bool(self.chk_aplicar_promo.get()) if hasattr(self, 'chk_aplicar_promo') else True
+        if len(self.matriz_cuentas) + 2 > 100:
+            messagebox.showinfo("Límite Alcanzado", "Por seguridad visual, el límite máximo es de 100 cuentas en cola. Libera espacio antes de agregar el par mixto.")
+            return
+            
         par = [
             self.preparar_item_cuenta({"tipo_persona": "Persona natural", "tipo_doc": "Venezuelan", "ubicacion": ubicacion, "plan_seleccionado": plan_seleccionado, "aplicar_promocion": aplicar_promo}),
             self.preparar_item_cuenta({"tipo_persona": "Persona jurídica", "tipo_rif": "Legal", "ubicacion": ubicacion, "plan_seleccionado": plan_seleccionado, "aplicar_promocion": aplicar_promo})
@@ -2445,7 +2464,12 @@ class AppGideon(ctk.CTk):
                 with open(filepath, "r", encoding="utf-8") as f:
                     datos = json.load(f)
                     if isinstance(datos, list):
-                        self.matriz_cuentas = [self.preparar_item_cuenta(c) for c in datos]
+                        espacio_libre = 100 - len(self.matriz_cuentas)
+                        if len(datos) > espacio_libre:
+                            messagebox.showinfo("Límite Alcanzado", f"El perfil contiene más cuentas de las permitidas visualmente. Se cargarán solo {espacio_libre} cuentas.")
+                            datos = datos[:espacio_libre]
+                        
+                        self.matriz_cuentas.extend([self.preparar_item_cuenta(c) for c in datos])
                         self.refrescar_vista_cola()
                         self.log_salida(f"📂 Perfil cargado exitosamente desde: {filepath}")
                     else:
@@ -2476,6 +2500,11 @@ class AppGideon(ctk.CTk):
             fg_color=("#e9ecef", "#2b2d31"),
             text_color=("#212529", "#ffffff")
         )
+        espacio_libre = 100 - len(self.matriz_cuentas)
+        if len(cuentas_a_cargar) > espacio_libre:
+            messagebox.showinfo("Límite Alcanzado", f"El límite visual es de 100 cuentas. Se reincorporarán solo {espacio_libre} cuentas fallidas.")
+            cuentas_a_cargar = cuentas_a_cargar[:espacio_libre]
+            
         self.matriz_cuentas.extend(cuentas_a_cargar)
         self.refrescar_vista_cola()
         self.log_salida(f"🔄 Reincorporadas {len(cuentas_a_cargar)} cuenta(s) fallidas de la tanda actual a la cola.")
