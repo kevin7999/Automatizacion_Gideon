@@ -36,7 +36,7 @@ class Sidebar(ctk.CTkFrame):
         # --- Botones de Navegación ---
         self.crear_boton("FTTH CRM", "FTTH CRM")
         self.crear_boton("eCommerce B2C", "eCommerce B2C")
-        self.crear_boton("Telemetría", "Telemetría")
+        self.crear_boton("Historial", "Historial")
         
         # --- Espaciador ---
         spacer = ctk.CTkFrame(self, fg_color="transparent")
