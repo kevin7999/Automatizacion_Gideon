@@ -594,7 +594,7 @@ class AppGideon(ctk.CTk):
             border_width=1,
             border_color=("#ced4da", "#2c2e33")
         )
-        card_cola.pack(fill="x", padx=0, pady=(0, 8))
+        card_cola.pack(fill="both", expand=True, padx=0, pady=(0, 8))
 
         frame_cola_hdr = ctk.CTkFrame(card_cola, fg_color="transparent")
         frame_cola_hdr.pack(fill="x", padx=12, pady=(8, 4))
@@ -616,11 +616,11 @@ class AppGideon(ctk.CTk):
 
         self.frame_cola_scroll = ctk.CTkScrollableFrame(
             card_cola,
-            height=165,
+            height=80,
             fg_color=("#f1f3f5", "#141517"),
             corner_radius=8
         )
-        self.frame_cola_scroll.pack(fill="x", padx=10, pady=(0, 8))
+        self.frame_cola_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
         # 2. Card de Opciones y Acciones de Ejecución
         card_exec = ctk.CTkFrame(
@@ -991,7 +991,7 @@ class AppGideon(ctk.CTk):
         self.frame_ott_right.pack(side="right", fill="both", expand=True, padx=(5, 0), pady=5)
 
         card_cola = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
-        card_cola.pack(fill="x", padx=0, pady=(0, 8))
+        card_cola.pack(fill="both", expand=True, padx=0, pady=(0, 8))
 
         frame_cola_hdr = ctk.CTkFrame(card_cola, fg_color="transparent")
         frame_cola_hdr.pack(fill="x", padx=12, pady=(8, 4))
@@ -999,8 +999,8 @@ class AppGideon(ctk.CTk):
         self.lbl_cola_badge_ott = ctk.CTkLabel(frame_cola_hdr, text="0 en espera", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#495057", "#adb5bd"))
         self.lbl_cola_badge_ott.pack(side="right")
 
-        self.frame_cola_scroll_ott = ctk.CTkScrollableFrame(card_cola, height=130, fg_color=("#f1f3f5", "#141517"), corner_radius=8)
-        self.frame_cola_scroll_ott.pack(fill="x", padx=10, pady=(0, 8))
+        self.frame_cola_scroll_ott = ctk.CTkScrollableFrame(card_cola, height=80, fg_color=("#f1f3f5", "#141517"), corner_radius=8)
+        self.frame_cola_scroll_ott.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
         # Acciones
         card_exec = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
