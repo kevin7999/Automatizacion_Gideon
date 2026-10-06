@@ -147,8 +147,8 @@ class AppGideon(ctk.CTk):
         
         # Diccionario para controlar el enrutamiento
         self.frames_map = {
-            "FTTH Masivo": self.tab_control,
-            "OTT Cuentas": self.tab_ott,
+            "FTTH CRM": self.tab_control,
+            "eCommerce B2C": self.tab_ott,
             "Telemetría": self.tab_reportes,
             "Sistema": self.tab_config
         }
@@ -164,8 +164,8 @@ class AppGideon(ctk.CTk):
         self.filtrar_planes()
         
         # Activar la primera vista
-        self.sidebar.set_active("FTTH Masivo")
-        self.al_cambiar_pestana("FTTH Masivo")
+        self.sidebar.set_active("FTTH CRM")
+        self.al_cambiar_pestana("FTTH CRM")
 
     def toggle_sidebar(self):
         """Oculta o muestra dinámicamente el Sidebar manipulando el layout grid."""
@@ -1052,7 +1052,7 @@ class AppGideon(ctk.CTk):
         self.stepper_ott.pack(fill="x", padx=10, pady=(0, 8))
         
         # 4. Consola Log Integrada OTT
-        self.console_ott = ConsoleLog(self.frame_ott_right, title="Terminal Operativa eCommerce OTT")
+        self.console_ott = ConsoleLog(self.frame_ott_right, title="Terminal Operativa eCommerce")
         self.console_ott.pack(fill="both", expand=True, padx=0, pady=0)
         self.txt_log_ott = self.console_ott.textbox  # Para retrocompatibilidad
 
