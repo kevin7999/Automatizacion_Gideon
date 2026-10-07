@@ -5,6 +5,7 @@ import threading
 CONFIG_FILE = "config_gideon.json"
 
 DEFAULT_CONFIG = {
+    "agente_id": "Operador_Sin_Nombre",
     "prefijo_email": "CAMBIALO_Fibrastest",
     "prefijo_email_ott": "CAMBIALO_OTT",
     "usuario_login": "TestSebastian",

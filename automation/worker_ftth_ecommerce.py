@@ -830,8 +830,13 @@ def ejecutar_worker_ftth_ecommerce(
                 pass
 
             try:
-                chk_declaro = page.locator("input[name='informationDeclaration']").first
+                # Intentar hacer check al input real
+                chk_declaro = page.locator("input[type='checkbox']").first
                 chk_declaro.wait_for(state="attached", timeout=5000)
+                chk_declaro.check(force=True)
+            except Exception:
+                # Fallback por nombre/texto original
+                chk_declaro = page.locator("input[name='informationDeclaration']").first
                 chk_declaro.click(force=True)
             except Exception:
                 page.locator("text=/Declaro que toda la informaci.n/i").first.click(force=True)

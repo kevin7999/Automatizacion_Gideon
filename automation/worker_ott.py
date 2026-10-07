@@ -16,48 +16,72 @@ CATALOGO_DIRECCIONES_OTT = cargar_catalogo_direcciones_ott()
 CATALOGO_OTT = cargar_catalogo_ott()
 
 def obtener_codigo_otp_maildrop(email_base, correlativo, p_context, cancel_event=None):
+    PATRON_CONTEXTUAL = re.compile(
+        r'(?:c[o\u00f3]digo|code|verificaci[o\u00f3]n|verification|otp|token|clave|pin)'
+        r'.{0,120}(\d{6})'
+        r'|'
+        r'(\d{6})'
+        r'.{0,120}(?:c[o\u00f3]digo|code|verificaci[o\u00f3]n|verification|otp|token|clave|pin)',
+        re.IGNORECASE | re.DOTALL
+    )
     mailbox_name = f"{email_base}{correlativo}"
     page_maildrop = p_context.new_page()
+    codigo = None
     try:
         page_maildrop.goto(f"https://maildrop.cc/inbox/?mailbox={mailbox_name}", timeout=60000)
-        
-        codigo = None
-        for i in range(15):
+        try:
+            page_maildrop.wait_for_load_state("networkidle", timeout=15000)
+        except:
+            pass
+
+        for intento in range(15):
             if cancel_event and cancel_event.is_set():
                 break
-            page_maildrop.wait_for_timeout(3500)
             
-            # Hacer clic en el primer correo de la lista (cualquiera que haya llegado)
-            primer_correo = page_maildrop.locator("div[class*='truncate'], a[href*='/inbox/'], li[class*='message']").first
-            if primer_correo.is_visible():
-                try:
+            email_abierto = False
+            try:
+                primer_correo = page_maildrop.locator(
+                    "a[href*='/message/'], div[class*='Message'], li[class*='message'], "
+                    "div[class*='message'], a[class*='message'], article, [role='listitem']"
+                ).first
+                if primer_correo.is_visible():
                     primer_correo.click()
                     page_maildrop.wait_for_timeout(2000)
-                except:
-                    pass
+                    email_abierto = True
+            except:
+                pass
             
-            # Buscar el código de 6 dígitos en todo el texto visible de la página o frames
+            # Extraer SOLAMENTE texto visible (ignorar HTML para evitar colores Hex como #334155)
             texto_visible = ""
             try:
                 texto_visible += page_maildrop.inner_text("body")
-                texto_visible += " " + page_maildrop.content()
             except:
                 pass
                 
             for frame in page_maildrop.frames:
                 try:
                     texto_visible += " " + frame.inner_text("body")
-                    texto_visible += " " + frame.content()
                 except:
                     pass
             
-            # Buscar 6 dígitos aislados (ej. 727633)
-            match = re.search(r'(?<!\d)(\d{6})(?!\d)', texto_visible)
-            if match:
-                codigo = match.group(1)
+            # 1. Búsqueda contextual
+            match_ctx = PATRON_CONTEXTUAL.search(texto_visible)
+            if match_ctx:
+                codigo = match_ctx.group(1) or match_ctx.group(2)
                 break
             
-            page_maildrop.reload()
+            # 2. Búsqueda fallback estricta (solo si el correo se abrió)
+            if email_abierto:
+                match_fb = re.search(r'(?<!\d)(\d{6})(?!\d)', texto_visible)
+                if match_fb:
+                    codigo = match_fb.group(1)
+                    break
+            
+            page_maildrop.wait_for_timeout(4000)
+            try:
+                page_maildrop.reload()
+            except:
+                pass
                 
         return codigo
     except Exception as e:
@@ -337,33 +361,66 @@ def crear_cuenta_ott(
             time.sleep(3)
             page.wait_for_selector("text='Generación de contrato'", state="visible", timeout=20000)
             
-            # Llenar Cédula de Identidad (evitamos get_by_label por si el dropdown interfiere)
-            cedula_input = page.locator("input[placeholder*='cédula de identidad'], input[placeholder*='Cédula']").first
-                        # Seleccionar tipo de documento (V, E, P) mediante inyección JS
-            page.evaluate("""(prefijo) => {
+            # Nombres — mismo patrón que P3 que funciona
+            page.get_by_label("Nombre").fill(nombre, force=True)
+            page.get_by_label("Nombre").blur()
+            page.get_by_label("Apellido").fill(apellido, force=True)
+            page.get_by_label("Apellido").blur()
+
+            # Seleccionar tipo doc — mismo JS nativo que P3 que funciona
+            page.evaluate(f"""(prefijo) => {{
                 const selects = Array.from(document.querySelectorAll('select'));
-                // Buscar el select que tenga las opciones V, E, P
-                const select = selects.find(s => {
+                const select = selects.find(s => {{
                     const opts = Array.from(s.options).map(o => o.text.trim().toUpperCase());
                     return opts.includes('V') || opts.includes('E') || opts.includes('P') || opts.includes('V-') || opts.includes('E-');
-                });
-                if(select) {
+                }});
+                if(select) {{
                     const target = Array.from(select.options).find(o => o.text.trim().toUpperCase().startsWith(prefijo) || o.value.toUpperCase().startsWith(prefijo));
-                    if(target) {
+                    if(target) {{
                         const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
                         nativeSetter.call(select, target.value);
-                        select.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                }
-            }""", prefijo_ced)
+                        select.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    }}
+                }}
+            }}""", prefijo_ced)
             time.sleep(0.5)
-            cedula_input.click(force=True)
-            cedula_input.fill(cedula.replace("-",""))
-            cedula_input.blur()
+
+            # Llenar cédula — fill() directo, pero exigiendo que sea el campo visible
+            cedula_limpia = cedula.replace("-","")
+            campo_cedula = page.locator("input[name='dni.number']:visible").first
+            campo_cedula.scroll_into_view_if_needed()
+            campo_cedula.click(force=True)
+            page.wait_for_timeout(200)
+            campo_cedula.fill(cedula_limpia, force=True)
+            campo_cedula.press_sequentially(cedula_limpia, delay=50) # Fallback inyectando teclas por si React no lee el fill
+            campo_cedula.blur()
+            time.sleep(0.3)
+
+            # Log de verificación
+            valor_real = campo_cedula.input_value()
+            log_callback(f"[Hilo {id_hilo}] Cédula registrada: '{valor_real}'")
+
+            
+            try:
+                selects_tel = page.locator("select")
+                for i in range(selects_tel.count()):
+                    opciones = selects_tel.nth(i).inner_text()
+                    if "0412" in opciones or "0414" in opciones:
+                        selects_tel.nth(i).select_option(label=prefijo_tel, force=True)
+                        break
+                page.locator("input[name='phone.number']").fill(numero_tel, force=True)
+                page.locator("input[name='phone.number']").blur()
+            except Exception:
+                pass
             
             # Checkbox P5
-            page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
-            time.sleep(1)
+            try:
+                # Intentar hacer check al input real visible
+                page.locator("input[type='checkbox']:visible").first.check(force=True)
+            except Exception:
+                # Fallback: hacer clic en el contenedor del texto
+                page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
+            page.wait_for_timeout(1000)
             
             if "page" in locals(): guardar_evidencia(timer.current_step)
             

@@ -25,6 +25,7 @@ from core.correlativos import (
     leer_correlativo_actual, obtener_siguiente_correlativo, actualizar_correlativo_manual
 )
 from core.generadores import limpiar_texto_crm
+from core.sync_sheets import sincronizar_hacia_google_sheets
 from automation.worker import crear_cuenta_individual
 from automation.worker_ott import crear_cuenta_ott
 from automation.worker_ftth_ecommerce import ejecutar_worker_ftth_ecommerce
@@ -38,7 +39,7 @@ class AppGideon(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("G.I.D.E.O.N. v3.4.2 TEST | Simplefibra FTTH Automation Hub")
+        self.title("G.I.D.E.O.N. v4.0 | Simplefibra FTTH Automation Hub")
         self.geometry("1120x840")
         self.minsize(1100, 820)
         self.resizable(True, True)
@@ -1003,10 +1004,6 @@ class AppGideon(ctk.CTk):
         self.console_ott.grid(row=3, column=0, sticky="nsew", pady=0)
         self.txt_log_ott = self.console_ott.textbox  # Para retrocompatibilidad
 
-        # 3. Componente Stepper OTT
-        self.stepper_ott = Stepper(self.frame_ott_right, steps=["Login", "Suscripción", "Ubicación", "Comprador", "OTP", "Éxito"])
-        self.stepper_ott.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 8))
-
         card_cola = ctk.CTkFrame(self.frame_ott_right, corner_radius=10, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"))
         card_cola.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
 
@@ -1298,6 +1295,14 @@ class AppGideon(ctk.CTk):
         self.after(500, _finalizar)
 
     def iniciar_proceso_ott(self):
+        agente = self.config_sys.get("agente_id", "").strip()
+        if not agente or agente.lower() == "desconocido" or agente == "Operador_Sin_Nombre":
+            messagebox.showwarning("⚠️ ID Requerido", "Debes configurar tu Identificador de Agente (Tú) en la pestaña 'Sistema' antes de iniciar.")
+            if hasattr(self, 'sidebar'):
+                self.sidebar.set_active("Sistema")
+                self.al_cambiar_pestana("Sistema")
+            return
+
         if not self.matriz_cuentas_ott:
             messagebox.showinfo("Cola vacía", "Agrega al menos una cuenta a la cola OTT antes de iniciar.")
             return
@@ -1306,8 +1311,6 @@ class AppGideon(ctk.CTk):
         self.btn_cancelar_ott.configure(state="normal")
         self.cancel_event_ott.clear()
         self.fallidas_tanda_actual_ott.clear()
-        if hasattr(self, 'stepper_ott'):
-            self.stepper_ott.reset()
         
         self.log_salida_ott(f"🚀 Iniciando procesamiento masivo de {len(self.matriz_cuentas_ott)} cuentas OTT...")
         threading.Thread(target=self.ejecutar_hilos_ott, daemon=True).start()
@@ -1475,6 +1478,19 @@ class AppGideon(ctk.CTk):
         )
         self.btn_limpiar_fecha.pack(side="left", padx=(0, 10), pady=8)
 
+        # Botón Sincronizar Google Sheets
+        self.btn_sincronizar_sheets = ctk.CTkButton(
+            frame_toolbar,
+            text="☁️ Sincronizar a Google Sheets",
+            command=self.lanzar_sincronizacion_sheets,
+            fg_color="#0f9d58",
+            hover_color="#0b8043",
+            text_color="#ffffff",
+            font=ctk.CTkFont(weight="bold"),
+            width=180
+        )
+        self.btn_sincronizar_sheets.pack(side="right", padx=(5, 10), pady=8)
+
         # Botón Recargar
         ctk.CTkButton(
             frame_toolbar,
@@ -1485,7 +1501,7 @@ class AppGideon(ctk.CTk):
             text_color="#ffffff",
             font=ctk.CTkFont(weight="bold"),
             width=110
-        ).pack(side="right", padx=10, pady=8)
+        ).pack(side="right", padx=5, pady=8)
 
         # 3. TABLA MODERNA TREEVIEW CON ESTILO DINÁMICO
         frame_tabla_container = ctk.CTkFrame(
@@ -1558,6 +1574,32 @@ class AppGideon(ctk.CTk):
 
         self.datos_historial_raw = []
         self.cargar_historial_reporte()
+
+    def lanzar_sincronizacion_sheets(self):
+        url = self.config_sys.get("url_google_sheet", "")
+        if not url:
+            messagebox.showwarning("Falta Configuración", "No hay URL de Google Sheets en config_gideon.json")
+            return
+            
+        self.btn_sincronizar_sheets.configure(state="disabled", text="Sincronizando...")
+        
+        def _proceso():
+            def log_ui(msg):
+                self.after(0, lambda: self.log_salida(msg))
+            try:
+                log_ui("☁️ Iniciando sincronización con Google Sheets...")
+                insertados = sincronizar_hacia_google_sheets(url, log_callback=log_ui)
+                if insertados > 0:
+                    self.after(0, lambda: messagebox.showinfo("Éxito", f"Se sincronizaron {insertados} cuentas nuevas."))
+                else:
+                    self.after(0, lambda: messagebox.showinfo("Aviso", "No hay cuentas nuevas (Exitosas) para sincronizar."))
+            except Exception as e:
+                log_ui(f"❌ Error en sincronización: {str(e)}")
+                self.after(0, lambda: messagebox.showerror("Error", f"Fallo al sincronizar:\n{str(e)}"))
+            finally:
+                self.after(0, lambda: self.btn_sincronizar_sheets.configure(state="normal", text="☁️ Sincronizar a Google Sheets"))
+                
+        threading.Thread(target=_proceso, daemon=True).start()
 
     def cargar_historial_reporte(self):
         self.datos_historial_raw = []
@@ -1978,6 +2020,11 @@ class AppGideon(ctk.CTk):
         self.seg_modo_cfg.set(val_modo_inicial)
         self.seg_modo_cfg.grid(row=8, column=1, sticky="w", padx=10, pady=10)
 
+        ctk.CTkLabel(form_frame, text="Identificador de Agente (Operador):", text_color="#ff7800", font=ctk.CTkFont(weight="bold")).grid(row=9, column=0, sticky="w", pady=10)
+        self.entry_agente_id = ctk.CTkEntry(form_frame, width=450, fg_color=("#ffffff", "#25262b"), border_color=("#ff7800", "#ff7800"))
+        self.entry_agente_id.insert(0, self.config_sys.get("agente_id", "Operador_Sin_Nombre"))
+        self.entry_agente_id.grid(row=9, column=1, padx=10, pady=10)
+
         frame_actions_cfg = ctk.CTkFrame(frame_box, fg_color="transparent")
         frame_actions_cfg.pack(anchor="w", padx=24, pady=25)
 
@@ -2075,6 +2122,7 @@ class AppGideon(ctk.CTk):
                 self.tree_historial.tag_configure('tag_error', foreground='#ff6b6b')
 
     def guardar_ajustes_ui(self):
+        self.config_sys["agente_id"] = self.entry_agente_id.get().strip()
         self.config_sys["prefijo_email"] = self.entry_prefijo.get().strip()
         self.config_sys["prefijo_email_ott"] = self.entry_prefijo_ott.get().strip()
         self.config_sys["dominio_email"] = self.entry_dominio.get().strip()
@@ -2659,6 +2707,14 @@ class AppGideon(ctk.CTk):
         self.after(0, _log)
 
     def iniciar_proceso(self):
+        agente = self.config_sys.get("agente_id", "").strip()
+        if not agente or agente.lower() == "desconocido" or agente == "Operador_Sin_Nombre":
+            messagebox.showwarning("⚠️ ID Requerido", "Debes configurar tu Identificador de Agente (Tú) en la pestaña 'Sistema' antes de iniciar.")
+            if hasattr(self, 'sidebar'):
+                self.sidebar.set_active("Sistema")
+                self.al_cambiar_pestana("Sistema")
+            return
+
         if not self.matriz_cuentas:
             self.log_salida("⚠️ La cola de ejecución está vacía. Agrega cuentas o selecciona un preset antes de iniciar.")
             return
@@ -2781,39 +2837,7 @@ class AppGideon(ctk.CTk):
         self.estado_hilos[id_hilo] = {
             "Paso": paso_actual,
             "TiempoInicio": inicio_step_timestamp,
-            "Estado": estado
         }
-        
-        # Sincronizar el Stepper visual con el estado del worker (ejecutar en hilo principal de forma segura)
-        def _sync_stepper():
-            try:
-                # El único stepper activo visualmente es el de eCommerce
-                stepper = getattr(self, "stepper_ott", None)
-                if not stepper: return
-                
-                if estado == "Exito":
-                    stepper.set_step(5, "success")
-                elif estado == "Error":
-                    pass # Se manejaría globalmente o dejaría el último en activo
-                else:
-                    paso_low = paso_actual.lower()
-                    if "paso 0" in paso_low or "login" in paso_low:
-                        stepper.set_step(0, "active")
-                    elif "paso 1" in paso_low or "datos" in paso_low:
-                        stepper.set_step(0, "success")
-                        stepper.set_step(1, "active")
-                    elif "paso 2" in paso_low or "direcci" in paso_low:
-                        stepper.set_step(1, "success")
-                        stepper.set_step(2, "active")
-                    elif "paso 3" in paso_low or "paso 4" in paso_low or "plan" in paso_low or "promocion" in paso_low:
-                        stepper.set_step(2, "success")
-                        stepper.set_step(3, "active")
-                    elif "paso 5" in paso_low or "otp" in paso_low:
-                        stepper.set_step(3, "success")
-                        stepper.set_step(4, "active")
-            except Exception:
-                pass
-        self.after(0, _sync_stepper)
         # Crear widget de la tarjeta si no existe
         if id_hilo not in self.widgets_monitor_hilos and hasattr(self, 'frame_monitor_hilos'):
             card = ctk.CTkFrame(self.frame_monitor_hilos, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"), corner_radius=6)
