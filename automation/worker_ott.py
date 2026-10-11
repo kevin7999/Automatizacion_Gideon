@@ -2,7 +2,7 @@ import os
 import time
 import random
 import re
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 from core.correlativos import (
     obtener_siguiente_correlativo, formatear_error_amigable, registrar_cuenta_creada
@@ -89,6 +89,53 @@ def obtener_codigo_otp_maildrop(email_base, correlativo, p_context, cancel_event
         return None
     finally:
         page_maildrop.close()
+
+
+def asegurar_checkbox(page, name="informationDeclaration", log=print, id_hilo=1, intentos=3):
+    """Deja el checkbox en checked=True de forma idempotente y verifica el resultado."""
+    dialogo = page.locator("[role='dialog']:visible, .modal:visible").last
+    scope = dialogo if dialogo.count() > 0 else page
+    
+    chk = scope.locator(f"input[type='checkbox'][name='{name}']").first
+    if chk.count() == 0:
+        chk = scope.locator("input[type='checkbox']").first
+
+    try:
+        chk.wait_for(state="attached", timeout=8000)
+    except Exception:
+        pass
+
+    for intento in range(1, intentos + 1):
+        try:
+            if chk.count() > 0 and chk.is_checked():
+                log(f"[Hilo {id_hilo}] ✅ Checkbox ya marcado (intento {intento})")
+                return True
+        except Exception:
+            pass
+
+        try:
+            if intento == 1:
+                chk.check(force=True, timeout=3000)
+            elif intento == 2:
+                scope.locator("text=/Declaro que toda la información/i").first.click(timeout=3000)
+            else:
+                chk.evaluate("el => el.click()")
+        except Exception as e:
+            log(f"[Hilo {id_hilo}] ⚠️ Checkbox intento {intento}: {str(e)[:80]}")
+
+        page.wait_for_timeout(400)
+
+        try:
+            if chk.count() > 0 and chk.is_checked():
+                log(f"[Hilo {id_hilo}] ✅ Checkbox verificado marcado (intento {intento})")
+                return True
+        except Exception:
+            pass
+
+    try:
+        return chk.is_checked()
+    except Exception:
+        return False
 
 
 def crear_cuenta_ott(
@@ -379,46 +426,37 @@ def crear_cuenta_ott(
             # P5: Carrito y Generación de contrato
             timer.start_step("P5: Carrito y Contrato")
             
-            # Click Continuar en Carrito
-            try:
-                page.wait_for_selector("text='Debe completar el registro de datos para continuar con el pago'", state="visible", timeout=20000)
-            except:
-                pass # A veces no sale el texto o carga muy rápido, continuamos
-            time.sleep(2)
-            page.locator("button:visible:has-text('Continuar')").first.click(force=True)
+            # Click Continuar en Carrito sin esperas fantasma
+            btn_cart = page.locator("button:visible").filter(has_text=re.compile(r"^Continuar$", re.I)).first
+            btn_cart.wait_for(state="visible", timeout=12000)
+            btn_cart.click(force=True)
             
-            # El modal de contrato aparece después del clic (titulado 'Registro Simpletv+' o 'Generación de contrato')
-            time.sleep(2)
-            try:
-                page.get_by_text("Registro Simpletv+").first.wait_for(state="visible", timeout=12000)
-            except Exception:
-                try:
-                    page.get_by_text("Generación de contrato").first.wait_for(state="visible", timeout=5000)
-                except Exception:
-                    page.get_by_placeholder("cédula", exact=False).first.wait_for(state="visible", timeout=5000)
+            # El modal de contrato aparece tras el clic (detectar por campo de cédula o 'Datos básicos')
+            loc_modal = page.locator("input[name='dni.number']:visible, input[placeholder*='cédula' i]:visible, text='Datos básicos'").first
+            loc_modal.wait_for(state="visible", timeout=10000)
             
             # Tipo de cliente: Persona natural (si existe selector)
             try:
                 loc_tipo = page.locator("select[name='clientType']:visible, select[name*='client' i]:visible").first
-                if loc_tipo.count() > 0 and loc_tipo.is_visible(timeout=800):
+                if loc_tipo.count() > 0:
                     loc_tipo.select_option(label="Persona natural", force=True)
             except Exception:
                 pass
 
-            # Nombres y Apellidos
+            # Nombres y Apellidos (selectores directos por name para evitar timeout de get_by_label)
             try:
-                page.get_by_label("Nombre").fill(nombre, force=True)
-                page.get_by_label("Nombre").blur()
-                page.get_by_label("Apellido").fill(apellido, force=True)
-                page.get_by_label("Apellido").blur()
+                inp_nom = page.locator("input[name='firstName']:visible, input[name*='name']:not([name*='last']):visible").first
+                if inp_nom.count() > 0:
+                    inp_nom.fill(nombre, force=True)
+                    inp_nom.blur()
+                inp_ape = page.locator("input[name='lastName']:visible, input[name*='last']:visible").first
+                if inp_ape.count() > 0:
+                    inp_ape.fill(apellido, force=True)
+                    inp_ape.blur()
             except Exception:
-                try:
-                    page.locator("input[name*='name']:not([name*='last']):visible").first.fill(nombre, force=True)
-                    page.locator("input[name*='last']:visible").first.fill(apellido, force=True)
-                except Exception:
-                    pass
+                pass
 
-            # Seleccionar tipo doc (V, E, P)
+            # Seleccionar prefijo doc (V, E, P)
             try:
                 page.evaluate(f"""(prefijo) => {{
                     const selects = Array.from(document.querySelectorAll('select'));
@@ -437,90 +475,68 @@ def crear_cuenta_ott(
                 }}""", prefijo_ced)
             except Exception:
                 pass
-            time.sleep(0.3)
 
-            # Llenar cédula con estrategia multi-selector tolerante a React
+            # Llenar cédula directo y veloz
             cedula_limpia = cedula.replace("-", "").strip()
-            candidatos_cedula = [
-                page.get_by_placeholder("cédula", exact=False),
-                page.get_by_placeholder("cedula", exact=False),
-                page.get_by_placeholder("identidad", exact=False),
-                page.locator("input[placeholder*='cédula' i]"),
-                page.locator("input[placeholder*='cedula' i]"),
-                page.locator("input[placeholder*='identid' i]"),
-                page.locator("input[name='dni.number']"),
-                page.locator("input[name*='dni']"),
-                page.locator("input[name*='cedula']"),
-                page.locator("input[name*='identity']"),
-            ]
-            campo_cedula = None
-            for cand in candidatos_cedula:
-                try:
-                    if cand.count() > 0 and cand.first.is_visible(timeout=800):
-                        campo_cedula = cand.first
-                        break
-                except Exception:
-                    continue
-
-            if campo_cedula:
-                try:
-                    campo_cedula.scroll_into_view_if_needed()
-                    campo_cedula.click(force=True)
-                    page.wait_for_timeout(200)
-                    campo_cedula.fill("", force=True)
-                    campo_cedula.fill(cedula_limpia, force=True)
-                    campo_cedula.press_sequentially(cedula_limpia, delay=30)
-                    # Disparar evento React nativo para asegurar actualización del estado
-                    page.evaluate("""([el, val]) => {
-                        if (!el) return;
-                        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                        setter.call(el, val);
-                        el.dispatchEvent(new Event('input', { bubbles: true }));
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                    }""", [campo_cedula.element_handle(), cedula_limpia])
-                    campo_cedula.blur()
-                    time.sleep(0.3)
-                    valor_real = campo_cedula.input_value()
-                    log_callback(f"[Hilo {id_hilo}] ✅ Cédula registrada en P5: '{valor_real}'")
-                except Exception as e:
-                    log_callback(f"[Hilo {id_hilo}] ⚠️ Error escribiendo cédula en P5: {e}")
-            else:
-                log_callback(f"[Hilo {id_hilo}] ⚠️ No se localizó campo de cédula visible en P5.")
+            campo_cedula = page.locator("input[name='dni.number']:visible, input[placeholder*='cédula' i]:visible, input[name*='dni']:visible, input[placeholder*='cedula' i]:visible").first
+            try:
+                campo_cedula.wait_for(state="visible", timeout=3000)
+                campo_cedula.fill(cedula_limpia, force=True)
+                # Disparar eventos React nativos para sincronizar el estado
+                page.evaluate("""([el, val]) => {
+                    if (!el) return;
+                    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, val);
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }""", [campo_cedula.element_handle(), cedula_limpia])
+                campo_cedula.blur()
+                valor_real = campo_cedula.input_value()
+                log_callback(f"[Hilo {id_hilo}] ✅ Cédula registrada en P5: '{valor_real}'")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Error escribiendo cédula en P5: {e}")
 
             # Teléfono
             try:
-                selects_tel = page.locator("select")
+                selects_tel = page.locator("select:visible")
                 for i in range(selects_tel.count()):
                     opciones = selects_tel.nth(i).inner_text()
                     if "0412" in opciones or "0414" in opciones:
                         selects_tel.nth(i).select_option(label=prefijo_tel, force=True)
                         break
-                page.locator("input[name='phone.number']:visible, input[name*='phone']:visible").first.fill(numero_tel, force=True)
-                page.locator("input[name='phone.number']:visible, input[name*='phone']:visible").first.blur()
+                inp_tel = page.locator("input[name='phone.number']:visible, input[name*='phone']:visible").first
+                if inp_tel.count() > 0:
+                    inp_tel.fill(numero_tel, force=True)
+                    inp_tel.blur()
             except Exception:
                 pass
             
-            # Checkbox P5
+            # Checkbox P5 (idempotente sin doble toggle)
+            if not asegurar_checkbox(page, name="informationDeclaration", log=log_callback, id_hilo=id_hilo):
+                log_callback(f"[Hilo {id_hilo}] ⚠️ No se pudo confirmar checked=True vía asegurar_checkbox, intentando click directo...")
+                try:
+                    page.locator("input[name='informationDeclaration']:visible, input[type='checkbox']:visible").first.check(force=True)
+                except Exception:
+                    pass
+
+            # El mensaje rojo de validación debe desaparecer si llegó a verse
             try:
-                chk = page.locator("input[type='checkbox']:visible").first
-                if chk.is_visible(timeout=1000):
-                    chk.check(force=True)
+                page.get_by_text("Verifique la declaración de datos").first.wait_for(state="hidden", timeout=2000)
             except Exception:
                 pass
-            try:
-                page.locator("text=/Declaro que toda la información/i").first.click(force=True)
-            except Exception:
-                pass
-            page.wait_for_timeout(1000)
-            
+
             if "page" in locals(): guardar_evidencia(timer.current_step)
-            
-            # Clicar Continuar
-            btn_continuar_p5 = page.locator("button:visible").filter(has_text=re.compile(r"Continuar", re.I)).last
+
+            # Esperar a que el botón Continuar esté habilitado antes de clicar
+            btn_continuar_p5 = page.locator("button:visible").filter(has_text=re.compile(r"^Continuar$", re.I)).last
+            try:
+                expect(btn_continuar_p5).to_be_enabled(timeout=5000)
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Botón Continuar no habilitado tras esperar: {e}")
+
             btn_continuar_p5.click(force=True)
-            
-            # Dar tiempo al modal para cerrarse/transicionar
-            time.sleep(3)
+
+            # Transición a Dirección
             timer.stop_step()
             
             # P6: Dirección
@@ -636,8 +652,16 @@ def crear_cuenta_ott(
             timer.start_step("P8: Aceptación de documentos")
             page.wait_for_selector("text=/Aceptación/i", timeout=15000)
             
-            # Marcar checkbox (forzando para evadir estilos custom)
-            page.locator("input[type='checkbox']").first.check(force=True)
+            # Marcar checkbox de aceptación de forma idempotente
+            try:
+                chk_p8 = page.locator("input[type='checkbox']:visible").first
+                if not chk_p8.is_checked():
+                    chk_p8.check(force=True)
+            except Exception:
+                try:
+                    page.locator("input[type='checkbox']").first.evaluate("el => el.click()")
+                except Exception:
+                    pass
             
             if "page" in locals(): guardar_evidencia(timer.current_step)
             
