@@ -425,42 +425,66 @@ def crear_cuenta_ott(
 
             # P5: Carrito y Generación de contrato
             timer.start_step("P5: Carrito y Contrato")
+            log_callback(f"[Hilo {id_hilo}] [P5] 🛒 Buscando botón 'Continuar' en el Carrito...")
             
             # Click Continuar en Carrito sin esperas fantasma
-            btn_cart = page.locator("button:visible").filter(has_text=re.compile(r"^Continuar$", re.I)).first
-            btn_cart.wait_for(state="visible", timeout=12000)
-            btn_cart.click(force=True)
+            try:
+                btn_cart = page.locator("button:visible").filter(has_text=re.compile(r"^Continuar$", re.I)).first
+                btn_cart.wait_for(state="visible", timeout=12000)
+                btn_cart.click(force=True)
+                log_callback(f"[Hilo {id_hilo}] [P5] ✅ Click en 'Continuar' del Carrito exitoso.")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Error clicando Continuar en Carrito: {e}")
             
             # El modal de contrato aparece tras el clic (detectar por campo de cédula o 'Datos básicos')
+            log_callback(f"[Hilo {id_hilo}] [P5] 📄 Esperando modal de Contrato...")
+            modal_detectado = False
             try:
                 page.locator("input[name='dni.number']:visible, input[placeholder*='cédula' i]:visible").first.wait_for(state="visible", timeout=8000)
+                modal_detectado = True
+                log_callback(f"[Hilo {id_hilo}] [P5] ✅ Modal detectado por campo de cédula visible.")
             except Exception:
-                page.get_by_text("Datos básicos").first.wait_for(state="visible", timeout=5000)
+                try:
+                    page.get_by_text("Datos básicos").first.wait_for(state="visible", timeout=5000)
+                    modal_detectado = True
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Modal detectado por texto 'Datos básicos'.")
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ Modal no detectado explícitamente: {e}. Continuando con llenado...")
             
             # Tipo de cliente: Persona natural (si existe selector)
             try:
                 loc_tipo = page.locator("select[name='clientType']:visible, select[name*='client' i]:visible").first
                 if loc_tipo.count() > 0:
                     loc_tipo.select_option(label="Persona natural", force=True)
-            except Exception:
-                pass
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Tipo de cliente: 'Persona natural' seleccionado.")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] [P5] (Info) Tipo de cliente no modificado: {e}")
 
-            # Nombres y Apellidos (selectores directos por name para evitar timeout de get_by_label)
+            # Nombres y Apellidos
+            log_callback(f"[Hilo {id_hilo}] [P5] ✍️ Escribiendo Nombre: '{nombre}', Apellido: '{apellido}'...")
             try:
                 inp_nom = page.locator("input[name='firstName']:visible, input[name*='name']:not([name*='last']):visible").first
                 if inp_nom.count() > 0:
                     inp_nom.fill(nombre, force=True)
                     inp_nom.blur()
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Nombre ingresado.")
+                else:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ No se encontró input para Nombre.")
+                
                 inp_ape = page.locator("input[name='lastName']:visible, input[name*='last']:visible").first
                 if inp_ape.count() > 0:
                     inp_ape.fill(apellido, force=True)
                     inp_ape.blur()
-            except Exception:
-                pass
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Apellido ingresado.")
+                else:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ No se encontró input para Apellido.")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Error escribiendo Nombre/Apellido: {e}")
 
             # Seleccionar prefijo doc (V, E, P)
+            log_callback(f"[Hilo {id_hilo}] [P5] 🪪 Seleccionando prefijo de cédula: '{prefijo_ced}'...")
             try:
-                page.evaluate(f"""(prefijo) => {{
+                res_pref = page.evaluate(f"""(prefijo) => {{
                     const selects = Array.from(document.querySelectorAll('select'));
                     const select = selects.find(s => {{
                         const opts = Array.from(s.options).map(o => o.text.trim().toUpperCase());
@@ -472,19 +496,25 @@ def crear_cuenta_ott(
                             const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
                             nativeSetter.call(select, target.value);
                             select.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            return target.value;
                         }}
                     }}
+                    return null;
                 }}""", prefijo_ced)
-            except Exception:
-                pass
+                if res_pref:
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Prefijo de cédula fijado en '{res_pref}'.")
+                else:
+                    log_callback(f"[Hilo {id_hilo}] [P5] ⚠️ Select de prefijo de cédula no localizado.")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Error fijando prefijo de cédula: {e}")
 
             # Llenar cédula directo y veloz
             cedula_limpia = cedula.replace("-", "").strip()
+            log_callback(f"[Hilo {id_hilo}] [P5] 🔢 Localizando y llenando cédula: '{cedula_limpia}'...")
             campo_cedula = page.locator("input[name='dni.number']:visible, input[placeholder*='cédula' i]:visible, input[name*='dni']:visible, input[placeholder*='cedula' i]:visible").first
             try:
-                campo_cedula.wait_for(state="visible", timeout=3000)
+                campo_cedula.wait_for(state="visible", timeout=4000)
                 campo_cedula.fill(cedula_limpia, force=True)
-                # Disparar eventos React nativos para sincronizar el estado
                 page.evaluate("""([el, val]) => {
                     if (!el) return;
                     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
@@ -494,32 +524,41 @@ def crear_cuenta_ott(
                 }""", [campo_cedula.element_handle(), cedula_limpia])
                 campo_cedula.blur()
                 valor_real = campo_cedula.input_value()
-                log_callback(f"[Hilo {id_hilo}] ✅ Cédula registrada en P5: '{valor_real}'")
+                log_callback(f"[Hilo {id_hilo}] [P5] ✅ Cédula verificada en DOM: '{valor_real}'")
             except Exception as e:
                 log_callback(f"[Hilo {id_hilo}] ⚠️ Error escribiendo cédula en P5: {e}")
 
             # Teléfono
+            log_callback(f"[Hilo {id_hilo}] [P5] 📱 Asignando teléfono ({prefijo_tel}) {numero_tel}...")
             try:
                 selects_tel = page.locator("select:visible")
+                pref_ok = False
                 for i in range(selects_tel.count()):
                     opciones = selects_tel.nth(i).inner_text()
                     if "0412" in opciones or "0414" in opciones:
                         selects_tel.nth(i).select_option(label=prefijo_tel, force=True)
+                        pref_ok = True
                         break
+                if pref_ok:
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Prefijo telefónico '{prefijo_tel}' seleccionado.")
                 inp_tel = page.locator("input[name='phone.number']:visible, input[name*='phone']:visible").first
                 if inp_tel.count() > 0:
                     inp_tel.fill(numero_tel, force=True)
                     inp_tel.blur()
-            except Exception:
-                pass
+                    log_callback(f"[Hilo {id_hilo}] [P5] ✅ Número telefónico ingresado.")
+                else:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ No se encontró input de teléfono.")
+            except Exception as e:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ Error llenando teléfono: {e}")
             
             # Checkbox P5 (idempotente sin doble toggle)
+            log_callback(f"[Hilo {id_hilo}] [P5] ☑️ Asegurando checkbox de declaración de datos...")
             if not asegurar_checkbox(page, name="informationDeclaration", log=log_callback, id_hilo=id_hilo):
                 log_callback(f"[Hilo {id_hilo}] ⚠️ No se pudo confirmar checked=True vía asegurar_checkbox, intentando click directo...")
                 try:
                     page.locator("input[name='informationDeclaration']:visible, input[type='checkbox']:visible").first.check(force=True)
-                except Exception:
-                    pass
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ Error en click directo a checkbox: {e}")
 
             # El mensaje rojo de validación debe desaparecer si llegó a verse
             try:
@@ -532,11 +571,14 @@ def crear_cuenta_ott(
             # Esperar a que el botón Continuar esté habilitado antes de clicar
             btn_continuar_p5 = page.locator("button:visible").filter(has_text=re.compile(r"^Continuar$", re.I)).last
             try:
+                log_callback(f"[Hilo {id_hilo}] [P5] 🔘 Esperando habilitación del botón Continuar...")
                 expect(btn_continuar_p5).to_be_enabled(timeout=5000)
+                log_callback(f"[Hilo {id_hilo}] [P5] ✅ Botón Continuar habilitado.")
             except Exception as e:
                 log_callback(f"[Hilo {id_hilo}] ⚠️ Botón Continuar no habilitado tras esperar: {e}")
 
             btn_continuar_p5.click(force=True)
+            log_callback(f"[Hilo {id_hilo}] [P5] 🚀 Click en Continuar ejecutado.")
 
             # Transición a Dirección (esperar que el modal procese submit)
             time.sleep(2)
