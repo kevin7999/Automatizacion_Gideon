@@ -264,16 +264,26 @@ def crear_cuenta_ott(
 
             # Llenar Cédula si el campo está presente en este modal (P3)
             try:
-                campo_cedula_p3 = page.locator(
-                    "input[placeholder*='cédula' i]:visible, input[placeholder*='cedula' i]:visible, input[name='dni.number']:visible, input[name*='cedula' i]:visible, input[name*='dni' i]:visible"
-                ).first
-                if campo_cedula_p3.is_visible(timeout=1000):
+                cands_p3 = [
+                    page.get_by_placeholder("cédula", exact=False),
+                    page.get_by_placeholder("cedula", exact=False),
+                    page.locator("input[placeholder*='cédula' i]"),
+                    page.locator("input[placeholder*='cedula' i]"),
+                    page.locator("input[name='dni.number']"),
+                    page.locator("input[name*='cedula']"),
+                ]
+                campo_p3 = None
+                for c in cands_p3:
+                    if c.count() > 0 and c.first.is_visible(timeout=500):
+                        campo_p3 = c.first
+                        break
+                if campo_p3:
                     cedula_limpia = cedula.replace("-", "").strip()
-                    campo_cedula_p3.click(force=True)
-                    campo_cedula_p3.fill("", force=True)
-                    campo_cedula_p3.fill(cedula_limpia, force=True)
-                    campo_cedula_p3.press_sequentially(cedula_limpia, delay=30)
-                    campo_cedula_p3.blur()
+                    campo_p3.click(force=True)
+                    campo_p3.fill("", force=True)
+                    campo_p3.fill(cedula_limpia, force=True)
+                    campo_p3.press_sequentially(cedula_limpia, delay=30)
+                    campo_p3.blur()
                     log_callback(f"[Hilo {id_hilo}] ✅ Cédula ingresada en P3: '{cedula_limpia}'")
             except Exception as e:
                 pass
@@ -377,11 +387,15 @@ def crear_cuenta_ott(
             time.sleep(2)
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             
-            # El modal de contrato aparece después del clic (ahora titulado 'Registro Simpletv+' o 'Generación de contrato')
+            # El modal de contrato aparece después del clic (titulado 'Registro Simpletv+' o 'Generación de contrato')
             time.sleep(2)
-            page.locator(
-                r"text=/Registro Simpletv\+|Generación de contrato|Datos básicos/i, input[placeholder*='cédula' i], input[name='dni.number']"
-            ).first.wait_for(state="visible", timeout=20000)
+            try:
+                page.get_by_text("Registro Simpletv+").first.wait_for(state="visible", timeout=12000)
+            except Exception:
+                try:
+                    page.get_by_text("Generación de contrato").first.wait_for(state="visible", timeout=5000)
+                except Exception:
+                    page.get_by_placeholder("cédula", exact=False).first.wait_for(state="visible", timeout=5000)
             
             # Tipo de cliente: Persona natural (si existe selector)
             try:
@@ -427,22 +441,23 @@ def crear_cuenta_ott(
 
             # Llenar cédula con estrategia multi-selector tolerante a React
             cedula_limpia = cedula.replace("-", "").strip()
-            selectores_cedula = [
-                "input[placeholder*='cédula' i]:visible",
-                "input[placeholder*='cedula' i]:visible",
-                "input[name='dni.number']:visible",
-                "input[name*='cedula' i]:visible",
-                "input[name*='dni' i]:visible",
-                "input[name*='identity' i]:visible",
-                "input[placeholder*='cédula' i]",
-                "input[name='dni.number']"
+            candidatos_cedula = [
+                page.get_by_placeholder("cédula", exact=False),
+                page.get_by_placeholder("cedula", exact=False),
+                page.get_by_placeholder("identidad", exact=False),
+                page.locator("input[placeholder*='cédula' i]"),
+                page.locator("input[placeholder*='cedula' i]"),
+                page.locator("input[placeholder*='identid' i]"),
+                page.locator("input[name='dni.number']"),
+                page.locator("input[name*='dni']"),
+                page.locator("input[name*='cedula']"),
+                page.locator("input[name*='identity']"),
             ]
             campo_cedula = None
-            for sel in selectores_cedula:
+            for cand in candidatos_cedula:
                 try:
-                    loc = page.locator(sel).first
-                    if loc.count() > 0 and loc.is_visible(timeout=1000):
-                        campo_cedula = loc
+                    if cand.count() > 0 and cand.first.is_visible(timeout=800):
+                        campo_cedula = cand.first
                         break
                 except Exception:
                     continue
