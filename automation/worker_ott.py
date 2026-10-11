@@ -432,8 +432,10 @@ def crear_cuenta_ott(
             btn_cart.click(force=True)
             
             # El modal de contrato aparece tras el clic (detectar por campo de cédula o 'Datos básicos')
-            loc_modal = page.locator("input[name='dni.number']:visible, input[placeholder*='cédula' i]:visible, text='Datos básicos'").first
-            loc_modal.wait_for(state="visible", timeout=10000)
+            try:
+                page.locator("input[name='dni.number']:visible, input[placeholder*='cédula' i]:visible").first.wait_for(state="visible", timeout=8000)
+            except Exception:
+                page.get_by_text("Datos básicos").first.wait_for(state="visible", timeout=5000)
             
             # Tipo de cliente: Persona natural (si existe selector)
             try:
@@ -536,7 +538,8 @@ def crear_cuenta_ott(
 
             btn_continuar_p5.click(force=True)
 
-            # Transición a Dirección
+            # Transición a Dirección (esperar que el modal procese submit)
+            time.sleep(2)
             timer.stop_step()
             
             # P6: Dirección
