@@ -175,47 +175,51 @@ def crear_cuenta_ott(
             if "page" in locals(): guardar_evidencia(timer.current_step)
             timer.stop_step()
 
-            # P2: Navegación y Selección del Plan
+            # P2: Navegación y Selección del Plan (Optimizado: DOM reactivo sin bloqueos networkidle)
             timer.start_step("P2: Selección de Plan OTT")
-            page.goto("https://tiendatesting.simple.com.ve/planes-streaming")
-            page.wait_for_load_state("networkidle")
+            page.goto("https://tiendatesting.simple.com.ve/planes-streaming", wait_until="domcontentloaded")
             
             # Buscar el paquete y la variante en el catálogo
             datos_plan = CATALOGO_OTT.get(plan_ott, {"paquete": plan_ott, "variante": ""})
             paquete_base = datos_plan["paquete"]
             variante = datos_plan["variante"]
             
-            # Mapeo del botón base:
+            # Mapeo del botón base con selector case-insensitive
             btn_selector = ""
             if "lite" in paquete_base.lower():
-                btn_selector = "text='Personalizar plan Lite'"
+                btn_selector = "text=/Personalizar plan Lite/i"
             elif "oro" in paquete_base.lower() or "gold" in paquete_base.lower():
-                btn_selector = "text='Personalizar plan Oro'"
+                btn_selector = "text=/Personalizar plan Oro/i"
             elif "platino" in paquete_base.lower():
-                btn_selector = "text='Personalizar plan Platino'"
+                btn_selector = "text=/Personalizar plan Platino/i"
             elif "diamante" in paquete_base.lower() or "diamond" in paquete_base.lower():
-                btn_selector = "text='Personalizar plan Diamante'"
+                btn_selector = "text=/Personalizar plan Diamante/i"
             else:
-                btn_selector = f"text='Personalizar plan {paquete_base}'" # Fallback
+                btn_selector = f"text=/Personalizar plan {paquete_base}/i"
             
-            page.locator(btn_selector).click()
-            page.wait_for_load_state("networkidle")
+            # Espera explícita al botón del plan y clic inmediato
+            btn_plan = page.locator(btn_selector).first
+            btn_plan.wait_for(state="visible", timeout=15000)
+            btn_plan.click(force=True)
+            
+            # Esperar a que cargue la interfaz del plan (botón Continuar visible)
+            btn_continuar = page.locator("button:visible").filter(has_text=re.compile(r"Continuar", re.I)).first
+            btn_continuar.wait_for(state="visible", timeout=12000)
             
             # Seleccionar la variante si existe
             if variante:
                 try:
                     log_callback(f"[Hilo {id_hilo}] Seleccionando variante: {variante}")
-                    page.locator(f"text='{variante}'").first.click(force=True)
-                    page.wait_for_timeout(2000)
+                    card_variante = page.locator(f"text='{variante}'").first
+                    if card_variante.is_visible(timeout=3000):
+                        card_variante.click(force=True)
+                        page.wait_for_timeout(400)
                 except Exception as e:
                     log_callback(f"[Hilo {id_hilo}] ⚠️ No se pudo seleccionar la variante '{variante}': {e}")
             
             # Continuar
             if "page" in locals(): guardar_evidencia(timer.current_step)
-            try:
-                page.locator("button:visible:has-text('Continuar')").first.click(force=True)
-            except:
-                page.get_by_role("button", name="Continuar").first.click(force=True)
+            btn_continuar.click(force=True)
                 
             timer.stop_step()
 
@@ -257,6 +261,22 @@ def crear_cuenta_ott(
                 }}
             }}""", prefijo_ced)
             time.sleep(0.5)
+
+            # Llenar Cédula si el campo está presente en este modal (P3)
+            try:
+                campo_cedula_p3 = page.locator(
+                    "input[placeholder*='cédula' i]:visible, input[placeholder*='cedula' i]:visible, input[name='dni.number']:visible, input[name*='cedula' i]:visible, input[name*='dni' i]:visible"
+                ).first
+                if campo_cedula_p3.is_visible(timeout=1000):
+                    cedula_limpia = cedula.replace("-", "").strip()
+                    campo_cedula_p3.click(force=True)
+                    campo_cedula_p3.fill("", force=True)
+                    campo_cedula_p3.fill(cedula_limpia, force=True)
+                    campo_cedula_p3.press_sequentially(cedula_limpia, delay=30)
+                    campo_cedula_p3.blur()
+                    log_callback(f"[Hilo {id_hilo}] ✅ Cédula ingresada en P3: '{cedula_limpia}'")
+            except Exception as e:
+                pass
             
             # Checkbox: Clicar el texto
             page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
@@ -357,50 +377,102 @@ def crear_cuenta_ott(
             time.sleep(2)
             page.locator("button:visible:has-text('Continuar')").first.click(force=True)
             
-            # El modal "Generación de contrato" aparece después del clic
-            time.sleep(3)
-            page.wait_for_selector("text='Generación de contrato'", state="visible", timeout=20000)
+            # El modal de contrato aparece después del clic (ahora titulado 'Registro Simpletv+' o 'Generación de contrato')
+            time.sleep(2)
+            page.locator(
+                r"text=/Registro Simpletv\+|Generación de contrato|Datos básicos/i, input[placeholder*='cédula' i], input[name='dni.number']"
+            ).first.wait_for(state="visible", timeout=20000)
             
-            # Nombres — mismo patrón que P3 que funciona
-            page.get_by_label("Nombre").fill(nombre, force=True)
-            page.get_by_label("Nombre").blur()
-            page.get_by_label("Apellido").fill(apellido, force=True)
-            page.get_by_label("Apellido").blur()
+            # Tipo de cliente: Persona natural (si existe selector)
+            try:
+                loc_tipo = page.locator("select[name='clientType']:visible, select[name*='client' i]:visible").first
+                if loc_tipo.count() > 0 and loc_tipo.is_visible(timeout=800):
+                    loc_tipo.select_option(label="Persona natural", force=True)
+            except Exception:
+                pass
 
-            # Seleccionar tipo doc — mismo JS nativo que P3 que funciona
-            page.evaluate(f"""(prefijo) => {{
-                const selects = Array.from(document.querySelectorAll('select'));
-                const select = selects.find(s => {{
-                    const opts = Array.from(s.options).map(o => o.text.trim().toUpperCase());
-                    return opts.includes('V') || opts.includes('E') || opts.includes('P') || opts.includes('V-') || opts.includes('E-');
-                }});
-                if(select) {{
-                    const target = Array.from(select.options).find(o => o.text.trim().toUpperCase().startsWith(prefijo) || o.value.toUpperCase().startsWith(prefijo));
-                    if(target) {{
-                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
-                        nativeSetter.call(select, target.value);
-                        select.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            # Nombres y Apellidos
+            try:
+                page.get_by_label("Nombre").fill(nombre, force=True)
+                page.get_by_label("Nombre").blur()
+                page.get_by_label("Apellido").fill(apellido, force=True)
+                page.get_by_label("Apellido").blur()
+            except Exception:
+                try:
+                    page.locator("input[name*='name']:not([name*='last']):visible").first.fill(nombre, force=True)
+                    page.locator("input[name*='last']:visible").first.fill(apellido, force=True)
+                except Exception:
+                    pass
+
+            # Seleccionar tipo doc (V, E, P)
+            try:
+                page.evaluate(f"""(prefijo) => {{
+                    const selects = Array.from(document.querySelectorAll('select'));
+                    const select = selects.find(s => {{
+                        const opts = Array.from(s.options).map(o => o.text.trim().toUpperCase());
+                        return opts.includes('V') || opts.includes('E') || opts.includes('P') || opts.includes('V-') || opts.includes('E-');
+                    }});
+                    if(select) {{
+                        const target = Array.from(select.options).find(o => o.text.trim().toUpperCase().startsWith(prefijo) || o.value.toUpperCase().startsWith(prefijo));
+                        if(target) {{
+                            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+                            nativeSetter.call(select, target.value);
+                            select.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        }}
                     }}
-                }}
-            }}""", prefijo_ced)
-            time.sleep(0.5)
-
-            # Llenar cédula — fill() directo, pero exigiendo que sea el campo visible
-            cedula_limpia = cedula.replace("-","")
-            campo_cedula = page.locator("input[name='dni.number']:visible").first
-            campo_cedula.scroll_into_view_if_needed()
-            campo_cedula.click(force=True)
-            page.wait_for_timeout(200)
-            campo_cedula.fill(cedula_limpia, force=True)
-            campo_cedula.press_sequentially(cedula_limpia, delay=50) # Fallback inyectando teclas por si React no lee el fill
-            campo_cedula.blur()
+                }}""", prefijo_ced)
+            except Exception:
+                pass
             time.sleep(0.3)
 
-            # Log de verificación
-            valor_real = campo_cedula.input_value()
-            log_callback(f"[Hilo {id_hilo}] Cédula registrada: '{valor_real}'")
+            # Llenar cédula con estrategia multi-selector tolerante a React
+            cedula_limpia = cedula.replace("-", "").strip()
+            selectores_cedula = [
+                "input[placeholder*='cédula' i]:visible",
+                "input[placeholder*='cedula' i]:visible",
+                "input[name='dni.number']:visible",
+                "input[name*='cedula' i]:visible",
+                "input[name*='dni' i]:visible",
+                "input[name*='identity' i]:visible",
+                "input[placeholder*='cédula' i]",
+                "input[name='dni.number']"
+            ]
+            campo_cedula = None
+            for sel in selectores_cedula:
+                try:
+                    loc = page.locator(sel).first
+                    if loc.count() > 0 and loc.is_visible(timeout=1000):
+                        campo_cedula = loc
+                        break
+                except Exception:
+                    continue
 
-            
+            if campo_cedula:
+                try:
+                    campo_cedula.scroll_into_view_if_needed()
+                    campo_cedula.click(force=True)
+                    page.wait_for_timeout(200)
+                    campo_cedula.fill("", force=True)
+                    campo_cedula.fill(cedula_limpia, force=True)
+                    campo_cedula.press_sequentially(cedula_limpia, delay=30)
+                    # Disparar evento React nativo para asegurar actualización del estado
+                    page.evaluate("""([el, val]) => {
+                        if (!el) return;
+                        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                        setter.call(el, val);
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }""", [campo_cedula.element_handle(), cedula_limpia])
+                    campo_cedula.blur()
+                    time.sleep(0.3)
+                    valor_real = campo_cedula.input_value()
+                    log_callback(f"[Hilo {id_hilo}] ✅ Cédula registrada en P5: '{valor_real}'")
+                except Exception as e:
+                    log_callback(f"[Hilo {id_hilo}] ⚠️ Error escribiendo cédula en P5: {e}")
+            else:
+                log_callback(f"[Hilo {id_hilo}] ⚠️ No se localizó campo de cédula visible en P5.")
+
+            # Teléfono
             try:
                 selects_tel = page.locator("select")
                 for i in range(selects_tel.count()):
@@ -408,24 +480,28 @@ def crear_cuenta_ott(
                     if "0412" in opciones or "0414" in opciones:
                         selects_tel.nth(i).select_option(label=prefijo_tel, force=True)
                         break
-                page.locator("input[name='phone.number']").fill(numero_tel, force=True)
-                page.locator("input[name='phone.number']").blur()
+                page.locator("input[name='phone.number']:visible, input[name*='phone']:visible").first.fill(numero_tel, force=True)
+                page.locator("input[name='phone.number']:visible, input[name*='phone']:visible").first.blur()
             except Exception:
                 pass
             
             # Checkbox P5
             try:
-                # Intentar hacer check al input real visible
-                page.locator("input[type='checkbox']:visible").first.check(force=True)
+                chk = page.locator("input[type='checkbox']:visible").first
+                if chk.is_visible(timeout=1000):
+                    chk.check(force=True)
             except Exception:
-                # Fallback: hacer clic en el contenedor del texto
-                page.locator("text='Declaro que toda la información proporcionada es real'").click(force=True)
+                pass
+            try:
+                page.locator("text=/Declaro que toda la información/i").first.click(force=True)
+            except Exception:
+                pass
             page.wait_for_timeout(1000)
             
             if "page" in locals(): guardar_evidencia(timer.current_step)
             
             # Clicar Continuar
-            btn_continuar_p5 = page.get_by_role("button", name="Continuar").last
+            btn_continuar_p5 = page.locator("button:visible").filter(has_text=re.compile(r"Continuar", re.I)).last
             btn_continuar_p5.click(force=True)
             
             # Dar tiempo al modal para cerrarse/transicionar
