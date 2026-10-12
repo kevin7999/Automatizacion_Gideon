@@ -2837,6 +2837,7 @@ class AppGideon(ctk.CTk):
         self.estado_hilos[id_hilo] = {
             "Paso": paso_actual,
             "TiempoInicio": inicio_step_timestamp,
+            "Estado": estado,
         }
         # Crear widget de la tarjeta si no existe
         if id_hilo not in self.widgets_monitor_hilos and hasattr(self, 'frame_monitor_hilos'):
@@ -2855,17 +2856,19 @@ class AppGideon(ctk.CTk):
         for id_hilo, info in self.estado_hilos.items():
             if id_hilo in self.widgets_monitor_hilos:
                 w = self.widgets_monitor_hilos[id_hilo]
-                w["lbl_step"].configure(text=info["Paso"])
+                w["lbl_step"].configure(text=info.get("Paso", ""))
                 
-                if info["Estado"] == "Activo":
-                    transcurrido = int(ahora - info["TiempoInicio"])
+                estado_hilo = info.get("Estado", "Activo")
+                if estado_hilo == "Activo":
+                    inicio = info.get("TiempoInicio", ahora)
+                    transcurrido = int(ahora - inicio)
                     mins = transcurrido // 60
                     secs = transcurrido % 60
                     w["lbl_time"].configure(text=f"⏱️ {mins:02d}:{secs:02d}", text_color=("#ff7800", "#ff922b"))
-                elif info["Estado"] == "Exito":
+                elif estado_hilo == "Exito":
                     w["lbl_step"].configure(text="Completado")
                     w["lbl_time"].configure(text_color=("#2b8a3e", "#51cf66"))
-                elif info["Estado"] == "Error":
+                elif estado_hilo == "Error":
                     w["lbl_time"].configure(text_color=("#c92a2a", "#e03131"))
                     
         self.after(1000, self.actualizar_cronometros_ui)

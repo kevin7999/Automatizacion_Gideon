@@ -451,14 +451,16 @@ def crear_cuenta_ott(
                 except Exception as e:
                     log_callback(f"[Hilo {id_hilo}] ⚠️ Modal no detectado explícitamente: {e}. Continuando con llenado...")
             
-            # Tipo de cliente: Persona natural (si existe selector)
+            # Tipo de cliente: Persona natural (solo si está habilitado y modificable)
             try:
                 loc_tipo = page.locator("select[name='clientType']:visible, select[name*='client' i]:visible").first
-                if loc_tipo.count() > 0:
-                    loc_tipo.select_option(label="Persona natural", force=True)
+                if loc_tipo.count() > 0 and loc_tipo.is_enabled():
+                    loc_tipo.select_option(label="Persona natural", force=True, timeout=1000)
                     log_callback(f"[Hilo {id_hilo}] [P5] ✅ Tipo de cliente: 'Persona natural' seleccionado.")
+                else:
+                    log_callback(f"[Hilo {id_hilo}] [P5] ℹ️ Tipo de cliente ya predefinido en 'Persona natural' (disabled).")
             except Exception as e:
-                log_callback(f"[Hilo {id_hilo}] [P5] (Info) Tipo de cliente no modificado: {e}")
+                log_callback(f"[Hilo {id_hilo}] [P5] (Info) Tipo de cliente: {e}")
 
             # Nombres y Apellidos
             log_callback(f"[Hilo {id_hilo}] [P5] ✍️ Escribiendo Nombre: '{nombre}', Apellido: '{apellido}'...")
