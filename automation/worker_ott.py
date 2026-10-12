@@ -231,22 +231,27 @@ def crear_cuenta_ott(
             paquete_base = datos_plan["paquete"]
             variante = datos_plan["variante"]
             
-            # Mapeo del botón base con selector case-insensitive
-            btn_selector = ""
-            if "lite" in paquete_base.lower():
-                btn_selector = "text=/Personalizar plan Lite/i"
-            elif "oro" in paquete_base.lower() or "gold" in paquete_base.lower():
-                btn_selector = "text=/Personalizar plan Oro/i"
+            # Mapeo del botón base con selector case-insensitive tolerante a 'Personalizar plan', 'Seleccionar Combo', etc.
+            term_plan = "Lite"
+            if "oro" in paquete_base.lower() or "gold" in paquete_base.lower():
+                term_plan = "Oro"
             elif "platino" in paquete_base.lower():
-                btn_selector = "text=/Personalizar plan Platino/i"
+                term_plan = "Platino"
             elif "diamante" in paquete_base.lower() or "diamond" in paquete_base.lower():
-                btn_selector = "text=/Personalizar plan Diamante/i"
+                term_plan = "Diamante"
             else:
-                btn_selector = f"text=/Personalizar plan {paquete_base}/i"
+                term_plan = paquete_base.strip()
+
+            btn_selector = rf"text=/(Seleccionar Combo|Personalizar plan|Seleccionar plan|Personalizar)\s+{term_plan}/i"
             
-            # Espera explícita al botón del plan y clic inmediato
+            # Espera explícita al botón del plan y clic inmediato con fallback
             btn_plan = page.locator(btn_selector).first
-            btn_plan.wait_for(state="visible", timeout=15000)
+            try:
+                btn_plan.wait_for(state="visible", timeout=10000)
+            except Exception:
+                # Fallback: buscar cualquier botón visible que contenga el término del plan
+                btn_plan = page.locator("button:visible").filter(has_text=re.compile(rf"{term_plan}", re.I)).first
+                btn_plan.wait_for(state="visible", timeout=8000)
             btn_plan.click(force=True)
             
             # Esperar a que cargue la interfaz del plan (botón Continuar visible)
