@@ -87,6 +87,8 @@ class AppGideon(ctk.CTk):
 
         self.estado_hilos = {}
         self.widgets_monitor_hilos = {}
+        self.estado_hilos_ott = {}
+        self.widgets_monitor_hilos_ott = {}
         self.after(1000, self.actualizar_cronometros_ui)
 
         # --- SISTEMA DE NAVEGACIÓN Y CONTENIDO (G.I.D.E.O.N. 4.0) ---
@@ -1061,6 +1063,10 @@ class AppGideon(ctk.CTk):
         )
         self.btn_cancelar_ott.pack(side="right", padx=(10, 0))
 
+        # 2.5 Panel de Monitoreo Multihilo en Vivo eCommerce / OTT
+        self.frame_monitor_hilos_ott = ctk.CTkScrollableFrame(self.frame_ott_right, corner_radius=10, fg_color="transparent", orientation="horizontal", height=75)
+        self.frame_monitor_hilos_ott.grid(row=2, column=0, sticky="ew", pady=(0, 8))
+
         # Refrescar vista por defecto
         self.refrescar_vista_cola_ott()
 
@@ -1249,6 +1255,12 @@ class AppGideon(ctk.CTk):
         self.cancel_event_ecom.clear()
         self.fallidas_tanda_actual_ecom.clear()
 
+        # Limpiar monitor de hilos OTT
+        self.estado_hilos_ott.clear()
+        for id_hilo, info in self.widgets_monitor_hilos_ott.items():
+            info["card"].destroy()
+        self.widgets_monitor_hilos_ott.clear()
+
         self.log_salida_ott(f"🚀 Iniciando {len(self.matriz_cuentas_ecom)} cuenta(s) FTTH eCommerce (1 hilo)...")
         threading.Thread(target=self.ejecutar_hilos_ftth_ecom, daemon=True).start()
 
@@ -1277,7 +1289,7 @@ class AppGideon(ctk.CTk):
                     i, config, self.config_sys, self.log_salida_ott,
                     _crear_cb(config),
                     self.cancel_event_ecom,
-                    self.update_thread_status
+                    self.update_thread_status_ott
                 )
                 import time as _time
                 _time.sleep(6)
@@ -1312,6 +1324,12 @@ class AppGideon(ctk.CTk):
         self.cancel_event_ott.clear()
         self.fallidas_tanda_actual_ott.clear()
         
+        # Limpiar monitor de hilos OTT
+        self.estado_hilos_ott.clear()
+        for id_hilo, info in self.widgets_monitor_hilos_ott.items():
+            info["card"].destroy()
+        self.widgets_monitor_hilos_ott.clear()
+
         self.log_salida_ott(f"🚀 Iniciando procesamiento masivo de {len(self.matriz_cuentas_ott)} cuentas OTT...")
         threading.Thread(target=self.ejecutar_hilos_ott, daemon=True).start()
 
@@ -1350,7 +1368,7 @@ class AppGideon(ctk.CTk):
                     i, config, self.config_sys, self.log_salida_ott,
                     _crear_cb(config),
                     self.cancel_event_ott,
-                    self.update_thread_status
+                    self.update_thread_status_ott
                 )
                 import time
                 time.sleep(6)
@@ -2839,23 +2857,63 @@ class AppGideon(ctk.CTk):
             "TiempoInicio": inicio_step_timestamp,
             "Estado": estado,
         }
-        # Crear widget de la tarjeta si no existe
-        if id_hilo not in self.widgets_monitor_hilos and hasattr(self, 'frame_monitor_hilos'):
-            card = ctk.CTkFrame(self.frame_monitor_hilos, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"), corner_radius=6)
-            card.pack(side="left", fill="x", expand=True, padx=(0, 4))
-            lbl_title = ctk.CTkLabel(card, text=f"Hilo {id_hilo}", font=ctk.CTkFont(size=10, weight="bold"), text_color=("#495057", "#ced4da"))
-            lbl_title.pack(anchor="w", padx=8, pady=(4, 0))
-            lbl_step = ctk.CTkLabel(card, text=paso_actual, font=ctk.CTkFont(size=11), text_color=("#212529", "#f8f9fa"))
-            lbl_step.pack(anchor="w", padx=8)
-            lbl_time = ctk.CTkLabel(card, text="⏱️ 00:00", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#ff7800", "#ff922b"))
-            lbl_time.pack(anchor="w", padx=8, pady=(0, 4))
-            self.widgets_monitor_hilos[id_hilo] = {"card": card, "lbl_step": lbl_step, "lbl_time": lbl_time}
-            
+        def _crear():
+            if id_hilo not in self.widgets_monitor_hilos and hasattr(self, 'frame_monitor_hilos'):
+                card = ctk.CTkFrame(self.frame_monitor_hilos, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"), corner_radius=6)
+                card.pack(side="left", fill="x", expand=True, padx=(0, 4))
+                lbl_title = ctk.CTkLabel(card, text=f"Hilo {id_hilo}", font=ctk.CTkFont(size=10, weight="bold"), text_color=("#495057", "#ced4da"))
+                lbl_title.pack(anchor="w", padx=8, pady=(4, 0))
+                lbl_step = ctk.CTkLabel(card, text=paso_actual, font=ctk.CTkFont(size=11), text_color=("#212529", "#f8f9fa"))
+                lbl_step.pack(anchor="w", padx=8)
+                lbl_time = ctk.CTkLabel(card, text="⏱️ 00:00", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#ff7800", "#ff922b"))
+                lbl_time.pack(anchor="w", padx=8, pady=(0, 4))
+                self.widgets_monitor_hilos[id_hilo] = {"card": card, "lbl_step": lbl_step, "lbl_time": lbl_time}
+        self.after(0, _crear)
+
+    def update_thread_status_ott(self, id_hilo, paso_actual, inicio_step_timestamp, estado):
+        self.estado_hilos_ott[id_hilo] = {
+            "Paso": paso_actual,
+            "TiempoInicio": inicio_step_timestamp,
+            "Estado": estado,
+        }
+        def _crear():
+            if id_hilo not in self.widgets_monitor_hilos_ott and hasattr(self, 'frame_monitor_hilos_ott'):
+                card = ctk.CTkFrame(self.frame_monitor_hilos_ott, fg_color=("#ffffff", "#1a1b1e"), border_width=1, border_color=("#ced4da", "#2c2e33"), corner_radius=6)
+                card.pack(side="left", fill="x", expand=True, padx=(0, 4))
+                lbl_title = ctk.CTkLabel(card, text=f"Hilo {id_hilo} (OTT)", font=ctk.CTkFont(size=10, weight="bold"), text_color=("#495057", "#ced4da"))
+                lbl_title.pack(anchor="w", padx=8, pady=(4, 0))
+                lbl_step = ctk.CTkLabel(card, text=paso_actual, font=ctk.CTkFont(size=11), text_color=("#212529", "#f8f9fa"))
+                lbl_step.pack(anchor="w", padx=8)
+                lbl_time = ctk.CTkLabel(card, text="⏱️ 00:00", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#ff7800", "#ff922b"))
+                lbl_time.pack(anchor="w", padx=8, pady=(0, 4))
+                self.widgets_monitor_hilos_ott[id_hilo] = {"card": card, "lbl_step": lbl_step, "lbl_time": lbl_time}
+        self.after(0, _crear)
+
     def actualizar_cronometros_ui(self):
         ahora = time.time()
+        # 1. Monitoreo FTTH CRM
         for id_hilo, info in self.estado_hilos.items():
             if id_hilo in self.widgets_monitor_hilos:
                 w = self.widgets_monitor_hilos[id_hilo]
+                w["lbl_step"].configure(text=info.get("Paso", ""))
+                
+                estado_hilo = info.get("Estado", "Activo")
+                if estado_hilo == "Activo":
+                    inicio = info.get("TiempoInicio", ahora)
+                    transcurrido = int(ahora - inicio)
+                    mins = transcurrido // 60
+                    secs = transcurrido % 60
+                    w["lbl_time"].configure(text=f"⏱️ {mins:02d}:{secs:02d}", text_color=("#ff7800", "#ff922b"))
+                elif estado_hilo == "Exito":
+                    w["lbl_step"].configure(text="Completado")
+                    w["lbl_time"].configure(text_color=("#2b8a3e", "#51cf66"))
+                elif estado_hilo == "Error":
+                    w["lbl_time"].configure(text_color=("#c92a2a", "#e03131"))
+
+        # 2. Monitoreo eCommerce / OTT
+        for id_hilo, info in self.estado_hilos_ott.items():
+            if id_hilo in self.widgets_monitor_hilos_ott:
+                w = self.widgets_monitor_hilos_ott[id_hilo]
                 w["lbl_step"].configure(text=info.get("Paso", ""))
                 
                 estado_hilo = info.get("Estado", "Activo")
