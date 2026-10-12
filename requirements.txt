@@ -1,2 +1,7 @@
-customtkinter
-playwright
+# Dependencias principales de G.I.D.E.O.N.
+customtkinter>=5.2.0
+playwright>=1.40.0
+Pillow>=10.0.0
+Faker>=20.0.0
+gspread>=6.0.0
+google-auth>=2.0.0
