@@ -1496,20 +1496,7 @@ class AppGideon(ctk.CTk):
         )
         self.btn_limpiar_fecha.pack(side="left", padx=(0, 10), pady=8)
 
-        # Botón Sincronizar Google Sheets
-        self.btn_sincronizar_sheets = ctk.CTkButton(
-            frame_toolbar,
-            text="☁️ Sincronizar a Google Sheets",
-            command=self.lanzar_sincronizacion_sheets,
-            fg_color="#0f9d58",
-            hover_color="#0b8043",
-            text_color="#ffffff",
-            font=ctk.CTkFont(weight="bold"),
-            width=180
-        )
-        self.btn_sincronizar_sheets.pack(side="right", padx=(5, 10), pady=8)
-
-        # Botón Recargar
+        # Botón Recargar en Toolbar superior
         ctk.CTkButton(
             frame_toolbar,
             text="Recargar",
@@ -1519,7 +1506,7 @@ class AppGideon(ctk.CTk):
             text_color="#ffffff",
             font=ctk.CTkFont(weight="bold"),
             width=110
-        ).pack(side="right", padx=5, pady=8)
+        ).pack(side="right", padx=(5, 10), pady=8)
 
         # 3. TABLA MODERNA TREEVIEW CON ESTILO DINÁMICO
         frame_tabla_container = ctk.CTkFrame(
@@ -1589,6 +1576,20 @@ class AppGideon(ctk.CTk):
         ctk.CTkButton(frame_bottom, text="Carpeta General", command=self.abrir_carpeta_evidencias_general, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
         ctk.CTkButton(frame_bottom, text="CSV Excel", command=self.abrir_archivo_csv, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
         ctk.CTkButton(frame_bottom, text="Copiar ID", command=self.copiar_correo_seleccionado, fg_color=("#e8590c", "#d9480f"), hover_color=("#c92a2a", "#c92a2a"), text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+
+        # Botón Sincronizar Google Sheets (ubicado abajo a la derecha)
+        self.btn_sincronizar_sheets = ctk.CTkButton(
+            frame_bottom,
+            text="☁️ Sincronizar a Google Sheets",
+            command=self.lanzar_sincronizacion_sheets,
+            fg_color="#0f9d58",
+            hover_color="#0b8043",
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            width=210,
+            height=30
+        )
+        self.btn_sincronizar_sheets.pack(side="right", padx=(5, 3))
 
         self.datos_historial_raw = []
         self.cargar_historial_reporte()
