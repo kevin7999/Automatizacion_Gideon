@@ -4,7 +4,7 @@ import ctypes
 
 # Fijar AppUserModelID para que Windows muestre el icono propio en la barra de tareas
 try:
-    myappid = 'simpletv.gideon.hub.3.4.2_test'
+    myappid = 'simpletv.gideon.hub.4.0.0_oficial'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except Exception:
     pass
@@ -22,7 +22,7 @@ if CARPETA_RAIZ not in sys.path:
 from ui.app import AppGideon
 
 def main():
-    """Punto de entrada principal de G.I.D.E.O.N. 3.4.2 TEST"""
+    """Punto de entrada principal de G.I.D.E.O.N. 4.0 Oficial"""
     app = AppGideon()
     app.mainloop()
 

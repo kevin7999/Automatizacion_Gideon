@@ -7,6 +7,7 @@ Evidencias_QA*/
 !catalogo_planes.csv
 !catalogo_direcciones.csv
 !catalogo_ott.csv
+!catalogo_direcciones_ott.csv
 *.json
 !auth_state.json
 !config_gideon.json
@@ -18,3 +19,5 @@ ENV/
 build/
 dist/
 *.spec
+!GIDEON_3.5.spec
+!GIDEON_4.0.spec
