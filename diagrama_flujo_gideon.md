@@ -1,78 +1,143 @@
-## Arquitectura de Flujos de G.I.D.E.O.N.
+# 🏗️ Arquitectura de Flujos de G.I.D.E.O.N. 4.0 Oficial
 
-El sistema orquesta la creación masiva de cuentas mediante procesos aislados inyectados en navegadores Chromium (`playwright`). Existen dos pipelines principales: **FTTH (Fibra)** y **OTT (Streaming)**.
+El sistema orquesta el aprovisionamiento automatizado mediante procesos independientes ejecutados en instancias aisladas de Chromium gestionadas por **Playwright** (`sync_playwright`). El núcleo operativo soporta tres pipelines: **FTTH CRM (Evergent)**, **eCommerce B2C (OTT Streaming)** y **Sincronización Cloud (Google Sheets)**.
 
-### Diagrama de Secuencia y Estados
+---
+
+## 1. Diagrama Macro de Arquitectura y Orquestación
 
 ```mermaid
 graph TD
-    %% Inicialización
-    A[Inicio: Orquestador UI] -->|Encola Tareas| B{Módulo Seleccionado}
+    %% Núcleo UI
+    UI[🖥️ G.I.D.E.O.N. 4.0 GUI - CustomTkinter] -->|Encola Lotes| Router{Módulo Operativo}
 
-    %% FLUJO FTTH
-    B -->|Multihilo| C[Worker FTTH]
-    subgraph FTTH [Flujo Automatizado FTTH]
-        C1[Paso 0: Login CRM] --> C2[Paso 1: Datos Básicos e Identidad]
-        C2 --> C3[Paso 2: Dirección y Cobertura]
-        C3 --> C4[Paso 3: Validación / Adicional]
-        C4 --> C5[Paso 4: Selección de Paquete Fibra]
-        C5 --> C6[Paso 4.2: Addons]
-        C6 --> C7[Paso 5: Recepción OTP / Confirmación]
-        C7 -->|Polling a Maildrop| C8{Validación OTP}
+    %% Pipeline FTTH CRM
+    Router -->|Multihilo Concurrente: 1-4 Workers| FTTH_Engine[⚡ Worker FTTH CRM]
+    subgraph FTTH [Pipeline FTTH CRM - Evergent]
+        F0[P0: Autenticación CRM] --> F1[P1: Datos Básicos e Identidad]
+        F1 --> F2[P2: Dirección y Cobertura Geográfica]
+        F2 --> F3[P3: Validación / Contacto Adicional]
+        F3 --> F4[P4: Selección de Paquete Fibra]
+        F4 --> F4_2[P4.2: Addons & Equipos]
+        F4_2 --> F5[P5: Interceptación y Confirmación OTP]
+        F5 --> F_Eval{¿OTP Válido?}
     end
-    C --> C1
-    C8 -->|Timeout / Falla| C9[Fallo: Regreso a Cola]
-    C8 -->|Éxito| C10[Cuenta Creada Exitosamente]
+    FTTH_Engine --> F0
+    F_Eval -->|Fallo / Timeout 60s| F_Error[Fallo: Registro en CSV & Reintento]
+    F_Eval -->|Éxito| F_OK[Cuenta FTTH Creada con Éxito]
 
-    %% FLUJO OTT
-    B -->|Mono-hilo| D[Worker OTT]
-    subgraph OTT [Flujo Semi-Asistido OTT]
-        D1[Paso 0: Login CRM] --> D2[Paso 1: Datos y Plan OTT]
-        D2 --> D3[Paso 2: Dirección OTT]
-        D3 --> D4[Paso 3: Validación OTP]
-        D4 -->|Polling a Maildrop| D5{Código Válido?}
-        D5 -->|Éxito| D6[Paso 4: Transición a Pasarela de Pago]
-        D6 --> D7((Alerta Sonora / Espera))
-        D7 -.->|Acción Manual Requerida| D8[Pago TDC Ingresado por Operador]
+    %% Pipeline OTT Streaming
+    Router -->|Mono-hilo Estricto: 1 Worker| OTT_Engine[🎬 Worker eCommerce OTT]
+    subgraph OTT [Pipeline eCommerce B2C - Tienda SimpleTV Streaming]
+        O1[P1: Iniciar Navegador & Sesión] --> O2[P2: Selección de Plan OTT / Combo Diamante]
+        O2 --> O3[P3: Registro Simpletv+ - Datos Básicos]
+        O3 --> O4[P4: Validar OTP - Maildrop Polling]
+        O4 --> O_OTP{¿Código 6 Dígitos?}
+        O_OTP -->|No / Timeout 90s| O_Error[Fallo: Debug Screenshot & Error]
+        O_OTP -->|Sí| O5[P5: Carrito y Contrato - Cédula & Checkbox Idempotente]
+        O5 --> O6[P6: Dirección de Facturación]
+        O6 --> O7[P7: Datos Adicionales]
+        O7 --> O8[P8: Aceptación de Documentos]
+        O8 --> O_Wait((🔔 Alerta Sonora: Espera Pago TDC))
+        O_Wait -.->|Operador realiza Pago y cierra Navegador| O_OK[Cuenta OTT Creada con Éxito]
     end
-    D --> D1
-    D5 -->|Timeout / Falla| C9
-    D8 -->|Cierre de Navegador| C10
+    OTT_Engine --> O1
 
-    %% Cierre y Persistencia
-    C10 --> E[(Historial CSV / JSON / Google Sheets)]
-    C10 --> F[Captura de Evidencia Fotográfica QA]
+    %% Persistencia y Nube
+    F_OK --> Storage[(📂 Persistencia Local: CSV & JSON)]
+    O_OK --> Storage
+    F_OK --> Evidencias[📸 Evidencias QA Fotográficas]
+    O_OK --> Evidencias
 
-### Detalle de Ciclo de Interceptación OTP (Maildrop)
+    %% Sincronización Google Sheets
+    UI -->|Botón Inferior Derecho| CloudSync[☁️ Smart Scan Sync - Google Sheets]
+    Storage --> CloudSync
+    CloudSync --> GSheets[(📊 Hoja de Cálculo Centralizada Google)]
+```
+
+---
+
+## 2. Detalle Exhaustivo del Pipeline OTT (Streaming B2C: P1 a P8)
+
+A diferencia de los flujos de prueba simplificados, el worker en producción de OTT ([`automation/worker_ott.py`](file:///c:/Users/KGarcia.Pasante/Music/GIDEON%203.1/GIDEON/automation/worker_ott.py)) ejecuta **8 pasos rigurosos y cronometrados**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operador
+    participant GUI as GIDEON UI (eCommerce B2C)
+    participant Worker as Worker OTT (Playwright)
+    participant Tienda as Tienda SimpleTV (React/Next)
+    participant Mail as Buzón Maildrop (Asíncrono)
+    participant Banco as Pasarela de Pago TDC
+
+    GUI->>Worker: Despacha tarea (1 hilo)
+    Worker->>Tienda: P1: Navega a catálogo streaming
+    Worker->>Tienda: P2: Localiza y clica botón de plan (Regex Combo Diamante/Oro/Lite)
+    Worker->>Tienda: P3: Modal Datos Básicos (Nombre, Apellido, Teléfono, Submit OTP)
+    Worker->>Mail: P4: Polling de bandeja (15 intentos x 4s)
+    Mail-->>Worker: Retorna código numérico 6 dígitos
+    Worker->>Tienda: P4: Inyecta dígitos en otp.0 - otp.5 y valida formulario
+    Worker->>Tienda: P5: Clica Continuar en Carrito -> Despliega modal 'Datos básicos'
+    Worker->>Tienda: P5: Inyecta Cédula en DOM, omite clientType disabled, asegura checkbox idempotente
+    Worker->>Tienda: P6: Llena Estado, Ciudad, Municipio y Zona en cascada
+    Worker->>Tienda: P7: Llena teléfono secundario y campos demográficos
+    Worker->>Tienda: P8: Marca aceptación de documentos de forma idempotente
+    Worker->>Tienda: P8: Clica Aceptar -> Transiciona a Pasarela Bancaria
+    Worker->>Operador: 🔔 Emite beep continuo y mantiene ventana abierta
+    Operador->>Banco: Ingresa TDC y confirma el pago
+    Operador->>Worker: Cierra la ventana del navegador
+    Worker->>GUI: Certifica Éxito (Pendiente Pago) y registra en CSV maestro
+```
+
+---
+
+## 3. Detalle del Ciclo de Interceptación OTP (Maildrop Engine)
+
+La validación por OTP en [`automation/crm_helpers.py`](file:///c:/Users/KGarcia.Pasante/Music/GIDEON%203.1/GIDEON/automation/crm_helpers.py) y [`automation/worker_ott.py`](file:///c:/Users/KGarcia.Pasante/Music/GIDEON%203.1/GIDEON/automation/worker_ott.py) opera con un bucle de tolerancia asíncrona:
+
 ```mermaid
 flowchart TD
-    O1[Apertura Buzón Maildrop] --> O2{Carga de Bandeja}
-    O2 -->|Timeout 60s| Falla[Fallo de Conexión]
-    O2 -->|Éxito| O3[Inicia Polling: Máximo 15 Reintentos]
-    O3 --> O4[Evaluación de Ciclo: intento < 15]
-    O4 -->|Sí| O5[Detecta Correo 'Bienvenido a Simplefibra' / Mensajes Nuevos]
-    O4 -->|No| Falla2[Timeout: OTP No Recibido en ~60-90s]
-    
-    O5 -->|Correo Encontrado| O6[Abre Correo y Espera 2s]
-    O5 -->|Bandeja Vacía| O7[Espera 4s y Recarga Página]
-    
-    O7 --> O4
-    
-    O6 --> O8[Extrae Texto Visible HTML/Iframes]
-    O8 --> O9{Regex Match: Código 6 Dígitos}
-    O9 -->|Sí| O10[Retorna Código OTP]
-    O9 -->|No| O7
-```
+    O1[Apertura de Contexto Maildrop Aislado] --> O2{Carga de Página Buzón}
+    O2 -->|Timeout 30s| Falla1[Error de Red: Maildrop Inaccesible]
+    O2 -->|Éxito| O3[Inicia Bucle de Polling: Máximo 15 Reintentos]
+    O3 --> O4[Verificación de Cancelación: ¿cancel_event activo?]
+    O4 -- Sí --> FallaCancel[Aborto Inmediato por el Operador]
+    O4 -- No --> O5{¿Llegó Correo Transaccional?}
+    O5 -- Sí --> O6[Abre Mensaje y Extrae Texto HTML / Iframes]
+    O5 -- No --> O7[Pausa de 4s con Recarga de Buzón]
+    O7 --> O8{¿Reintentos < 15?}
+    O8 -- Sí --> O4
+    O8 -- No --> FallaTimeout[Timeout: OTP No Entregado tras 90s]
+    O6 --> O9[Aplica Regex Contextual: Código 6 Dígitos]
+    O9 --> O10{¿Match Numérico Válido?}
+    O10 -- Sí --> O11[Retorna OTP y Cierra Pestaña Maildrop]
+    O10 -- No --> O7
 ```
 
-## Explicación Táctica
-1. **Concurrencia vs Bloqueos:** El pipeline FTTH ejecuta **multihilo total**, creando múltiples cuentas al mismo tiempo. El pipeline OTT es **mono-hilo estricto** para evitar mecanismos anti-spam del proveedor y debido a la necesidad de interacción manual al final.
-2. **Generación de Identidades:** Los nodos de *Datos Básicos* consumen `core.generadores` (Cédulas, RIF, Teléfonos de VZLA) en tiempo de ejecución, evitando la colisión de datos en hilos paralelos.
-3. **Manejo del Cuello de Botella (OTP):** Ambos flujos utilizan sincronización asíncrona mediante un bucle de polling progresivo sobre buzones de `maildrop.cc`. El sistema ejecuta un ciclo de **hasta 15 intentos**, esperando **4 segundos entre cada recarga** (aprox. 60 a 90 segundos de tolerancia global). Para extraer el código, utiliza 2 capas de RegEx (`PATRON_CONTEXTUAL` y fallback a 6 dígitos consecutivos) escaneando el body principal y los iFrames del correo.
-4. **Fricción por Pago (Control Dual OTT):** En el flujo de Streaming, el bot realiza el 90% del trabajo pesado y se detiene tácticamente en la pasarela de pago. Se emite una alerta auditiva (`\a`) y delega el control exacto en el momento del pago con tarjeta.
+---
 
-## Open Questions
-¿Requiere el usuario final o tu equipo que se documente el sub-flujo de rescate/reintentos cuando un worker falla por "Timeout de Selector", o con la vista macro de este plan es suficiente para su reporte?
+## 4. Arquitectura de Sincronización Cloud (Smart Scan Google Sheets)
 
-## User Review Required
-Este diagrama resume el comportamiento lógico implementado en el sistema real. Puedes utilizar el botón "Proceed" si das por aprobada esta documentación técnica y no necesitas adaptarla a otros formatos.
+Para evitar duplicaciones y colisiones al sincronizar desde múltiples computadoras de operadores hacia una misma hoja de cálculo:
+
+```mermaid
+flowchart LR
+    CSV[(cuentas_creadas.csv)] --> Scanner[Smart Scan Engine]
+    GSheet[(Google Sheets Central)] -->|Descarga Columna B: Correos Previos| Scanner
+    Scanner --> Filter{¿Correo ya existe en Columna B?}
+    Filter -- Sí --> Skip[Ignora Registro: Anti-Duplicado]
+    Filter -- No --> Validate{¿Estado es Exitoso?}
+    Validate -- Sí --> Append[Añade Fila con Mapeo A-K e ID Agente]
+    Validate -- No --> Skip
+    Append --> GSheet
+```
+
+---
+
+## 5. Decisiones Técnicas y Justificación de Arquitectura
+
+1. **Aislamiento Multihilo de la GUI:** Todo proceso de Playwright se ejecuta dentro de un hilo secundario (`threading.Thread` o `ThreadPoolExecutor`). La interfaz de CustomTkinter **únicamente** recibe eventos a través de `self.after(0, callback)` para evitar el congelamiento de la ventana principal.
+2. **Desacoplamiento de Monitores de Progreso:** A partir de la versión 4.0, FTTH CRM y eCommerce OTT poseen paneles gráficos y estructuras de datos de cronómetro completamente independientes (`frame_monitor_hilos` vs `frame_monitor_hilos_ott`).
+3. **Idempotencia en Checkboxes:** Todos los checkboxes en formularios React se validan con la función [`asegurar_checkbox`](file:///c:/Users/KGarcia.Pasante/Music/GIDEON%203.1/GIDEON/automation/worker_ott.py), la cual evalúa `is_checked()` antes de interactuar, erradicando el error de "doble toggle" que desmarcaba la declaración de datos.
+4. **Resiliencia ante Elementos Deshabilitados:** Los selectores con atributo `disabled` (como el tipo de cliente predeterminado en la tienda online) son detectados preventivamente con `is_enabled()`, omitiendo los timeouts de 45 segundos de Playwright.
