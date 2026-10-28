@@ -15,6 +15,8 @@ from ui.theme import *
 from ui.components.sidebar import Sidebar
 from ui.components.stepper import Stepper
 from ui.components.console_log import ConsoleLog
+from datetime import datetime, timedelta
+from ui.components.ficha_detalle import FichaDetalleCuenta, mostrar_menu_contextual, buscar_captura_error
 from core.config import (
     CONFIG_FILE, DEFAULT_CONFIG, cargar_configuracion, guardar_configuracion
 )
@@ -47,6 +49,13 @@ class AppGideon(ctk.CTk):
         self.config_sys = cargar_configuracion()
         tema_inicial = self.config_sys.get("tema_apariencia", "Dark")
         ctk.set_appearance_mode(tema_inicial)
+
+        # Inicialización y migración automática e idempotente de SQLite
+        try:
+            from core.database import migrar_datos_legacy_si_necesario
+            migrar_datos_legacy_si_necesario()
+        except Exception as e:
+            print(f"[BD] Error inicializando SQLite: {e}")
 
         # Cargar icono de ventana principal
         try:
@@ -1417,6 +1426,34 @@ class AppGideon(ctk.CTk):
         )
         self.card_hist_fallo.pack(side="left", fill="x", expand=True, padx=4)
 
+        # Hacer las tarjetas KPI interactivas (Clic para autofiltrar por estado)
+        def _bind_card_click(card_widget, callback):
+            try:
+                card_widget.configure(cursor="hand2")
+                card_widget.bind("<Button-1>", lambda e: callback())
+                for child in card_widget.winfo_children():
+                    child.configure(cursor="hand2")
+                    child.bind("<Button-1>", lambda e: callback())
+                    for sub in child.winfo_children():
+                        sub.configure(cursor="hand2")
+                        sub.bind("<Button-1>", lambda e: callback())
+            except Exception:
+                pass
+
+        def _filtrar_por_kpi_estado(estado_deseado):
+            if hasattr(self, 'cmb_filtro_estado'):
+                self.cmb_filtro_estado.set(estado_deseado)
+            if estado_deseado == "Todos los Estados":
+                if hasattr(self, 'cmb_filtro_servicio'):
+                    self.cmb_filtro_servicio.set("Todos los Servicios")
+                if hasattr(self, 'entry_busqueda_hist'):
+                    self.entry_busqueda_hist.delete(0, "end")
+            self.filtrar_historial()
+
+        _bind_card_click(self.card_hist_total, lambda: _filtrar_por_kpi_estado("Todos los Estados"))
+        _bind_card_click(self.card_hist_exito, lambda: _filtrar_por_kpi_estado("Solo Exitosos"))
+        _bind_card_click(self.card_hist_fallo, lambda: _filtrar_por_kpi_estado("Solo Errores"))
+
         # 2. BARRA DE HERRAMIENTAS: BÚSQUEDA Y FILTROS
         frame_toolbar = ctk.CTkFrame(
             self.tab_reportes,
@@ -1428,73 +1465,100 @@ class AppGideon(ctk.CTk):
         frame_toolbar.pack(fill="x", padx=10, pady=(0, 8))
 
         # Buscador en vivo
-        ctk.CTkLabel(frame_toolbar, text="🔍", font=ctk.CTkFont(size=14)).pack(side="left", padx=(12, 2), pady=8)
+        ctk.CTkLabel(frame_toolbar, text="🔍", font=ctk.CTkFont(size=14)).pack(side="left", padx=(10, 2), pady=8)
         self.entry_busqueda_hist = ctk.CTkEntry(
             frame_toolbar,
             placeholder_text="Buscar por nombre, correo, cédula/RIF, plan o estado...",
-            width=360,
+            width=300,
             fg_color=("#ffffff", "#25262b"),
             border_color=("#ced4da", "#373a40"),
             text_color=("#212529", "#f8f9fa")
         )
-        self.entry_busqueda_hist.pack(side="left", padx=5, pady=8)
+        self.entry_busqueda_hist.pack(side="left", padx=4, pady=8)
         self.entry_busqueda_hist.bind("<KeyRelease>", lambda e: self.filtrar_historial())
 
         # Filtro de Servicio
-        ctk.CTkLabel(frame_toolbar, text="Servicio:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(15, 5), pady=8)
+        ctk.CTkLabel(frame_toolbar, text="Servicio:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(8, 4), pady=8)
         self.cmb_filtro_servicio = ctk.CTkOptionMenu(
             frame_toolbar,
             values=["Todos los Servicios", "Solo OTT", "Solo Fibra"],
             command=lambda v: self.filtrar_historial(),
-            width=140,
+            width=130,
             fg_color=("#e9ecef", "#25262b"),
             button_color="#ff7800",
             button_hover_color="#e66a00",
             text_color=("#212529", "#ffffff")
         )
-        self.cmb_filtro_servicio.pack(side="left", padx=5, pady=8)
+        self.cmb_filtro_servicio.pack(side="left", padx=3, pady=8)
 
         # Filtro de Estado
-        ctk.CTkLabel(frame_toolbar, text="Estado:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(15, 5), pady=8)
+        ctk.CTkLabel(frame_toolbar, text="Estado:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(8, 4), pady=8)
         self.cmb_filtro_estado = ctk.CTkOptionMenu(
             frame_toolbar,
             values=["Todos los Estados", "Solo Exitosos", "Solo Errores"],
             command=lambda v: self.filtrar_historial(),
-            width=160,
+            width=140,
             fg_color=("#e9ecef", "#25262b"),
             button_color="#ff7800",
             button_hover_color="#e66a00",
             text_color=("#212529", "#ffffff")
         )
-        self.cmb_filtro_estado.pack(side="left", padx=5, pady=8)
+        self.cmb_filtro_estado.pack(side="left", padx=3, pady=8)
 
-        # Filtro de Fechas con Calendario
-        ctk.CTkLabel(frame_toolbar, text="Fecha:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(15, 5), pady=8)
-        
+        # Filtro de Fechas con Presets y Calendario
+        ctk.CTkLabel(frame_toolbar, text="Fecha:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#212529", "#f8f9fa")).pack(side="left", padx=(8, 4), pady=8)
+
         self.fecha_seleccionada = None
+        self.filtro_fecha_modo = None
         self.filtro_fecha_activo = False
-        
+
+        def _preset_fecha(modo):
+            hoy = datetime.now()
+            if modo == "hoy":
+                self.filtro_fecha_modo = "hoy"
+                self.aplicar_filtro_fecha(hoy.strftime("%Y-%m-%d"))
+            elif modo == "ayer":
+                ayer = hoy - timedelta(days=1)
+                self.filtro_fecha_modo = "ayer"
+                self.aplicar_filtro_fecha(ayer.strftime("%Y-%m-%d"))
+            elif modo == "7d":
+                self.fecha_seleccionada = None
+                self.filtro_fecha_modo = "7d"
+                self.filtro_fecha_activo = True
+                self.btn_fecha.configure(text="Últimos 7d")
+                self.filtrar_historial()
+            elif modo == "todo":
+                self.limpiar_filtro_fecha()
+
+        ctk.CTkButton(frame_toolbar, text="Hoy", width=36, height=26, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=10, weight="bold"), command=lambda: _preset_fecha("hoy")).pack(side="left", padx=1, pady=8)
+        ctk.CTkButton(frame_toolbar, text="Ayer", width=36, height=26, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=10, weight="bold"), command=lambda: _preset_fecha("ayer")).pack(side="left", padx=1, pady=8)
+        ctk.CTkButton(frame_toolbar, text="7D", width=30, height=26, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=10, weight="bold"), command=lambda: _preset_fecha("7d")).pack(side="left", padx=1, pady=8)
+        ctk.CTkButton(frame_toolbar, text="Todo", width=36, height=26, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=10, weight="bold"), command=lambda: _preset_fecha("todo")).pack(side="left", padx=(1, 3), pady=8)
+
         self.btn_fecha = ctk.CTkButton(
             frame_toolbar, 
-            text="Seleccionar Fecha", 
-            width=140,
+            text="📅 Calendario", 
+            width=100,
+            height=26,
             fg_color=("#e9ecef", "#2b2d31"),
             hover_color=("#dee2e6", "#343a40"),
             text_color=("#212529", "#ffffff"),
+            font=ctk.CTkFont(size=10, weight="bold"),
             command=self.abrir_calendario
         )
-        self.btn_fecha.pack(side="left", padx=5, pady=8)
+        self.btn_fecha.pack(side="left", padx=2, pady=8)
 
         self.btn_limpiar_fecha = ctk.CTkButton(
             frame_toolbar,
             text="✖",
-            width=28,
+            width=26,
+            height=26,
             fg_color="#dc3545",
             hover_color="#c82333",
             text_color="white",
             command=self.limpiar_filtro_fecha
         )
-        self.btn_limpiar_fecha.pack(side="left", padx=(0, 10), pady=8)
+        self.btn_limpiar_fecha.pack(side="left", padx=(2, 6), pady=8)
 
         # Botón Recargar en Toolbar superior
         ctk.CTkButton(
@@ -1505,10 +1569,10 @@ class AppGideon(ctk.CTk):
             hover_color="#e66a00",
             text_color="#ffffff",
             font=ctk.CTkFont(weight="bold"),
-            width=110
-        ).pack(side="right", padx=(5, 10), pady=8)
+            width=90
+        ).pack(side="right", padx=(4, 8), pady=8)
 
-        # 3. TABLA MODERNA TREEVIEW CON ESTILO DINÁMICO
+        # 3. TABLA MODERNA TREEVIEW CON ESTILO DINÁMICO Y TELEMETRÍA
         frame_tabla_container = ctk.CTkFrame(
             self.tab_reportes,
             corner_radius=10,
@@ -1518,7 +1582,7 @@ class AppGideon(ctk.CTk):
         )
         frame_tabla_container.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
-        columnas = ("fecha", "servicio", "tipo", "titular", "id_cliente", "email", "ubicacion", "plan", "estado")
+        columnas = ("fecha", "servicio", "tipo", "titular", "id_cliente", "email", "ubicacion", "plan", "duracion", "estado")
         self.tree_historial = ttk.Treeview(frame_tabla_container, columns=columnas, show="headings", style="Historial.Treeview", selectmode="extended")
 
         # Configurar Columnas
@@ -1530,17 +1594,19 @@ class AppGideon(ctk.CTk):
         self.tree_historial.heading("email", text="Correo (Mailbox)")
         self.tree_historial.heading("ubicacion", text="Ubicación")
         self.tree_historial.heading("plan", text="Plan & Promo")
+        self.tree_historial.heading("duracion", text="⏱️ Duración")
         self.tree_historial.heading("estado", text="Estado")
 
-        self.tree_historial.column("fecha", width=140, anchor="center")
-        self.tree_historial.column("servicio", width=80, anchor="center")
+        self.tree_historial.column("fecha", width=135, anchor="center")
+        self.tree_historial.column("servicio", width=75, anchor="center")
         self.tree_historial.column("tipo", width=95, anchor="center")
-        self.tree_historial.column("titular", width=220, anchor="w")
-        self.tree_historial.column("id_cliente", width=100, anchor="center")
-        self.tree_historial.column("email", width=270, anchor="w")
-        self.tree_historial.column("ubicacion", width=120, anchor="center")
-        self.tree_historial.column("plan", width=210, anchor="w")
-        self.tree_historial.column("estado", width=260, anchor="w")
+        self.tree_historial.column("titular", width=200, anchor="w")
+        self.tree_historial.column("id_cliente", width=95, anchor="center")
+        self.tree_historial.column("email", width=250, anchor="w")
+        self.tree_historial.column("ubicacion", width=115, anchor="center")
+        self.tree_historial.column("plan", width=195, anchor="w")
+        self.tree_historial.column("duracion", width=85, anchor="center")
+        self.tree_historial.column("estado", width=230, anchor="w")
 
         # Scrollbars
         scrollbar_y = ttk.Scrollbar(frame_tabla_container, orient="vertical", command=self.tree_historial.yview)
@@ -1554,28 +1620,49 @@ class AppGideon(ctk.CTk):
         # Aplicar estilo ttk y tags según el tema actual (Light/Dark)
         self.actualizar_estilo_treeview()
 
-        # Doble clic en fila para abrir carpeta de evidencias
-        self.tree_historial.bind("<Double-1>", lambda e: self.abrir_evidencia_seleccionada())
+        # Doble clic y Enter para abrir Ficha de Detalle y Diagnóstico
+        self.tree_historial.bind("<Double-1>", lambda e: self.abrir_ficha_detalle_seleccionada())
+        self.tree_historial.bind("<Return>", lambda e: self.abrir_ficha_detalle_seleccionada())
+
+        # Clic derecho (Windows/Linux) y <Button-2> (Mac) para Menú Contextual Moderno
+        self.tree_historial.bind("<Button-3>", self.mostrar_menu_contextual_historial)
+        self.tree_historial.bind("<Button-2>", self.mostrar_menu_contextual_historial)
+
+        # Copiar rápido con Control-C
         self.tree_historial.bind("<Control-c>", self.copiar_correo_seleccionado)
         self.tree_historial.bind("<Control-C>", self.copiar_correo_seleccionado)
 
-        # 4. BOTONES DE ACCIONES INFERIORES
+        # Evento de selección para actualizar contador dinámico
+        self.tree_historial.bind("<<TreeviewSelect>>", lambda e: self.actualizar_contador_historial())
+
+        # 4. BOTONES DE ACCIONES INFERIORES Y CONTADOR DINÁMICO
         frame_bottom = ctk.CTkFrame(self.tab_reportes, fg_color="transparent")
         frame_bottom.pack(fill="x", padx=10, pady=(0, 5))
 
         def _sel_todos():
             self.tree_historial.selection_set(self.tree_historial.get_children())
+            self.actualizar_contador_historial()
 
         def _desel_todos():
             self.tree_historial.selection_remove(self.tree_historial.get_children())
+            self.actualizar_contador_historial()
 
-        ctk.CTkButton(frame_bottom, text="Todos", width=62, command=_sel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="Ninguno", width=68, command=_desel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="Evidencias", command=self.abrir_evidencia_seleccionada, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="Reenviar a la Cola", command=self.reintentar_cuenta_historial_seleccionada, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="Carpeta General", command=self.abrir_carpeta_evidencias_general, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="CSV Excel", command=self.abrir_archivo_csv, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
-        ctk.CTkButton(frame_bottom, text="Copiar ID", command=self.copiar_correo_seleccionado, fg_color=("#e8590c", "#d9480f"), hover_color=("#c92a2a", "#c92a2a"), text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=3)
+        ctk.CTkButton(frame_bottom, text="Todos", width=55, command=_sel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+        ctk.CTkButton(frame_bottom, text="Ninguno", width=62, command=_desel_todos, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+        ctk.CTkButton(frame_bottom, text="🔍 Ficha", width=75, command=self.abrir_ficha_detalle_seleccionada, fg_color="#ff7800", hover_color="#e66a00", text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+        ctk.CTkButton(frame_bottom, text="Evidencias", command=self.abrir_evidencia_seleccionada, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+        ctk.CTkButton(frame_bottom, text="Reenviar a Cola", command=self.reintentar_cuenta_historial_seleccionada, fg_color=("#e9ecef", "#2b2d31"), hover_color=("#dee2e6", "#343a40"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+        ctk.CTkButton(frame_bottom, text="CSV Filtrado", command=self.exportar_vista_filtrada_csv, fg_color=("#e9ecef", "#343a40"), hover_color=("#dee2e6", "#495057"), text_color=("#212529", "#ffffff"), font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+        ctk.CTkButton(frame_bottom, text="Copiar ID", command=self.copiar_correo_seleccionado, fg_color=("#e8590c", "#d9480f"), hover_color=("#c92a2a", "#c92a2a"), text_color="#ffffff", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=2)
+
+        # Contador Dinámico
+        self.lbl_contador_historial = ctk.CTkLabel(
+            frame_bottom,
+            text="Mostrando 0 cuentas",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("#495057", "#adb5bd")
+        )
+        self.lbl_contador_historial.pack(side="left", padx=(10, 5))
 
         # Botón Sincronizar Google Sheets (ubicado abajo a la derecha)
         self.btn_sincronizar_sheets = ctk.CTkButton(
@@ -1592,6 +1679,7 @@ class AppGideon(ctk.CTk):
         self.btn_sincronizar_sheets.pack(side="right", padx=(5, 3))
 
         self.datos_historial_raw = []
+        self.mapa_historial_completo = {}
         self.cargar_historial_reporte()
 
     def lanzar_sincronizacion_sheets(self):
@@ -1614,58 +1702,58 @@ class AppGideon(ctk.CTk):
                     self.after(0, lambda: messagebox.showinfo("Aviso", "No hay cuentas nuevas (Exitosas) para sincronizar."))
             except Exception as e:
                 log_ui(f"❌ Error en sincronización: {str(e)}")
-                self.after(0, lambda: messagebox.showerror("Error", f"Fallo al sincronizar:\n{str(e)}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Fallo al sincronizar: {str(e)}"))
             finally:
                 self.after(0, lambda: self.btn_sincronizar_sheets.configure(state="normal", text="☁️ Sincronizar a Google Sheets"))
                 
         threading.Thread(target=_proceso, daemon=True).start()
 
     def cargar_historial_reporte(self):
-        self.datos_historial_raw = []
-        archivo_csv = "cuentas_creadas.csv"
-        total_cuentas = 0
-        exitosas = 0
-        fallidas = 0
+        try:
+            from core.database import consultar_historial_y_kpis
+            filas, kpis = consultar_historial_y_kpis(limit=5000)
 
-        if os.path.exists(archivo_csv):
-            try:
-                with open(archivo_csv, "r", encoding="utf-8") as f:
-                    reader = csv.reader(f)
-                    filas = list(reader)
-                    if filas:
-                        for r in filas[1:]:
-                            if len(r) >= 9:
-                                # Backward compatibility: if row is old (doesn't have Servicio at index 1)
-                                if len(r) == 12:
-                                    servicio = "OTT" if r[6].strip().upper() == "OTT" else "FTTH"
-                                    r.insert(1, servicio)
-                                
-                                if len(r) >= 10:
-                                    total_cuentas += 1
-                                    estado = r[9].strip()
-                                    if "EXITOSO" in estado.upper():
-                                        exitosas += 1
-                                    else:
-                                        fallidas += 1
-                                    self.datos_historial_raw.append(r)
-            except Exception as e:
-                print(f"Error leyendo cuentas_creadas.csv: {e}")
+            self.datos_historial_raw = filas
+            self.card_hist_total.lbl_val.configure(text=str(kpis["total"]))
+            self.card_hist_exito.lbl_val.configure(text=str(kpis["exitosas"]))
+            self.card_hist_tasa.lbl_val.configure(text=kpis["tasa"])
+            self.card_hist_fallo.lbl_val.configure(text=str(kpis["fallidas"]))
+        except Exception as e:
+            print(f"[BD] Fallback a lectura CSV por: {e}")
+            self.datos_historial_raw = []
+            archivo_csv = "cuentas_creadas.csv"
+            total_cuentas = 0
+            exitosas = 0
+            fallidas = 0
 
-        # Collect unique dates - (ya no es necesario llenar dropdown, pero se deja para futura referencia)
-        fechas_unicas = set()
-        for r in self.datos_historial_raw:
-            if r and len(r) > 0:
-                fecha_solo = r[0].split(" ")[0].strip()
-                fechas_unicas.add(fecha_solo)
-        
-        # Invertir para mostrar las más recientes arriba
-        self.datos_historial_raw.reverse()
+            if os.path.exists(archivo_csv):
+                try:
+                    with open(archivo_csv, "r", encoding="utf-8") as f:
+                        reader = csv.reader(f)
+                        filas_csv = list(reader)
+                        if filas_csv:
+                            for r in filas_csv[1:]:
+                                if len(r) >= 9:
+                                    if len(r) == 12:
+                                        servicio = "OTT" if r[6].strip().upper() == "OTT" else "FTTH"
+                                        r.insert(1, servicio)
+                                    if len(r) >= 10:
+                                        total_cuentas += 1
+                                        estado = r[9].strip()
+                                        if "EXITOSO" in estado.upper():
+                                            exitosas += 1
+                                        else:
+                                            fallidas += 1
+                                        self.datos_historial_raw.append(r)
+                except Exception as err:
+                    print(f"Error leyendo cuentas_creadas.csv: {err}")
 
-        tasa_pct = f"{(exitosas / total_cuentas * 100):.1f}%" if total_cuentas > 0 else "0%"
-        self.card_hist_total.lbl_val.configure(text=str(total_cuentas))
-        self.card_hist_exito.lbl_val.configure(text=str(exitosas))
-        self.card_hist_tasa.lbl_val.configure(text=tasa_pct)
-        self.card_hist_fallo.lbl_val.configure(text=str(fallidas))
+            self.datos_historial_raw.reverse()
+            tasa_pct = f"{(exitosas / total_cuentas * 100):.1f}%" if total_cuentas > 0 else "0%"
+            self.card_hist_total.lbl_val.configure(text=str(total_cuentas))
+            self.card_hist_exito.lbl_val.configure(text=str(exitosas))
+            self.card_hist_tasa.lbl_val.configure(text=tasa_pct)
+            self.card_hist_fallo.lbl_val.configure(text=str(fallidas))
 
         self.filtrar_historial()
 
@@ -1675,25 +1763,24 @@ class AppGideon(ctk.CTk):
             return
 
         self.ventana_calendario = ModernCalendar(self, self.aplicar_filtro_fecha)
-        # Centrar sobre la ventana principal
         self.ventana_calendario.update_idletasks()
         x = self.winfo_x() + (self.winfo_width() // 2) - (300 // 2)
         y = self.winfo_y() + (self.winfo_height() // 2) - (320 // 2)
         self.ventana_calendario.geometry(f"+{x}+{y}")
-        
-        # Hacerla modal para que no se pueda clickear atrás ni abrir infinitas veces
         self.ventana_calendario.grab_set()
 
     def aplicar_filtro_fecha(self, fecha_str):
         self.fecha_seleccionada = fecha_str
+        self.filtro_fecha_modo = "especifico"
         self.filtro_fecha_activo = True
         self.btn_fecha.configure(text=f"{fecha_str}")
         self.filtrar_historial()
 
     def limpiar_filtro_fecha(self):
         self.fecha_seleccionada = None
+        self.filtro_fecha_modo = None
         self.filtro_fecha_activo = False
-        self.btn_fecha.configure(text="Seleccionar Fecha")
+        self.btn_fecha.configure(text="📅 Calendario")
         self.filtrar_historial()
 
     def resolver_tipo_cliente(self, tipo_persona, doc_rif):
@@ -1701,7 +1788,7 @@ class AppGideon(ctk.CTk):
         doc_lower = doc_str.lower()
         tipo_lower = str(tipo_persona).lower()
 
-        # 1. Personas Jurídicas (3 tipos)
+        # 1. Personas Jurídicas
         if "government" in doc_lower or doc_str.startswith("G-"):
             return "Government"
         if "personal signature" in doc_lower:
@@ -1709,7 +1796,7 @@ class AppGideon(ctk.CTk):
         if "legal" in doc_lower or "jurídica" in tipo_lower or "juridica" in tipo_lower or doc_str.startswith("J-"):
             return "Legal"
 
-        # 2. Personas Naturales (3 tipos)
+        # 2. Personas Naturales
         if "foreigner" in doc_lower or doc_str.startswith("E-"):
             return "Foreigner"
         if "passport" in doc_lower or doc_str.startswith("P-"):
@@ -1717,44 +1804,46 @@ class AppGideon(ctk.CTk):
         if "venezuelan" in doc_lower or doc_str.startswith("V-"):
             return "Venezuelan"
 
-        # Fallback por defecto si no se deduce del doc
         if "jurídica" in tipo_lower or "juridica" in tipo_lower:
             return "Legal"
         return "Venezuelan"
 
     def filtrar_historial(self):
-        # Limpiar tabla
         for item in self.tree_historial.get_children():
             self.tree_historial.delete(item)
 
+        self.mapa_historial_completo = {}
         texto_busq = self.entry_busqueda_hist.get().strip().lower() if hasattr(self, 'entry_busqueda_hist') else ""
         filtro_estado = self.cmb_filtro_estado.get() if hasattr(self, 'cmb_filtro_estado') else "Todos los Estados"
         filtro_servicio = self.cmb_filtro_servicio.get() if hasattr(self, 'cmb_filtro_servicio') else "Todos los Servicios"
 
+        # Límite para filtro de 7 días
+        fecha_limite_7d = None
+        if getattr(self, 'filtro_fecha_modo', None) == "7d":
+            fecha_limite_7d = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
         idx = 0
         for r in self.datos_historial_raw:
-            # r: [0:Fecha, 1:Servicio, 2:Tipo, 3:Doc, 4:Nombre, 5:Email, 6:Tel, 7:Ubic, 8:Plan, 9:Estado, 10:Total_seg, 11:Desglose, 12:ID_Cliente]
             estado = r[9].strip() if len(r) > 9 else ""
             es_exitoso = "EXITOSO" in estado.upper()
             servicio_val = r[1].strip().upper() if len(r) > 1 else ""
 
-            # Filtro por servicio
             if filtro_servicio == "Solo OTT" and servicio_val != "OTT":
                 continue
             if filtro_servicio == "Solo Fibra" and servicio_val != "FTTH":
                 continue
 
-            # Filtro por estado
             if filtro_estado == "Solo Exitosos" and not es_exitoso:
                 continue
             if filtro_estado == "Solo Errores" and es_exitoso:
                 continue
 
-            # Filtro por fecha
-            if self.filtro_fecha_activo and self.fecha_seleccionada and not r[0].startswith(self.fecha_seleccionada):
-                continue
+            if self.filtro_fecha_activo:
+                if self.fecha_seleccionada and not r[0].startswith(self.fecha_seleccionada):
+                    continue
+                if fecha_limite_7d and str(r[0])[:10] < fecha_limite_7d:
+                    continue
 
-            # Filtro por búsqueda de texto
             if texto_busq:
                 linea_unida = " ".join(r).lower()
                 if texto_busq not in linea_unida:
@@ -1770,19 +1859,111 @@ class AppGideon(ctk.CTk):
 
             id_cliente = r[12] if len(r) > 12 and r[12].strip() else "-"
 
+            duracion_raw = r[10] if len(r) > 10 else ""
+            duracion_str = str(duracion_raw).strip()
+            if duracion_str and duracion_str != "-" and not duracion_str.endswith("s"):
+                duracion_str = f"{duracion_str}s"
+            if not duracion_str:
+                duracion_str = "-"
+
             valores = (
                 r[0],        # Fecha
-                servicio,    # Servicio (FTTH / OTT)
-                tipo_limpio, # Tipo limpio del sistema
+                servicio,    # Servicio
+                tipo_limpio, # Tipo
                 r[4],        # Titular / Empresa
                 id_cliente,  # N° Cliente
                 r[5],        # Email
-                r[7],        # Ubicacion (sin telefono)
+                r[7],        # Ubicación
                 r[8],        # Plan
+                duracion_str,# ⏱️ Duración
                 r[9]         # Estado
             )
-            self.tree_historial.insert("", "end", values=valores, tags=(tag_fila, tag_estado))
+            item_id = self.tree_historial.insert("", "end", values=valores, tags=(tag_fila, tag_estado))
+
+            # Almacenar registro completo para Ficha y Menú Contextual
+            self.mapa_historial_completo[item_id] = {
+                "fecha_hora": r[0],
+                "servicio": servicio,
+                "tipo_persona": tipo_limpio,
+                "documento_rif": r[3] if len(r) > 3 else "",
+                "nombre_o_empresa": r[4] if len(r) > 4 else "",
+                "email": r[5] if len(r) > 5 else "",
+                "telefono": r[6] if len(r) > 6 else "",
+                "ubicacion": r[7] if len(r) > 7 else "",
+                "plan": r[8] if len(r) > 8 else "",
+                "estado": r[9] if len(r) > 9 else "",
+                "tiempo_total_segundos": duracion_str.replace("s", "") if duracion_str != "-" else "",
+                "desglose_tiempos": r[11] if len(r) > 11 else "",
+                "id_cliente": id_cliente
+            }
             idx += 1
+
+        self.actualizar_contador_historial()
+
+    def actualizar_contador_historial(self):
+        if not hasattr(self, 'lbl_contador_historial') or not hasattr(self, 'tree_historial'):
+            return
+        total_visibles = len(self.tree_historial.get_children())
+        total_global = len(getattr(self, 'datos_historial_raw', []))
+        seleccionados = len(self.tree_historial.selection())
+
+        texto = f"Mostrando: {total_visibles} de {total_global} cuentas"
+        if seleccionados > 0:
+            texto += f" | {seleccionados} seleccionada(s)"
+        self.lbl_contador_historial.configure(text=texto)
+
+    def abrir_ficha_detalle_seleccionada(self, item_id=None):
+        if not item_id:
+            seleccion = self.tree_historial.selection()
+            if not seleccion:
+                messagebox.showinfo("Información", "Por favor selecciona una cuenta para ver su ficha completa.")
+                return
+            item_id = seleccion[0]
+
+        datos_cuenta = self.mapa_historial_completo.get(item_id)
+        if not datos_cuenta:
+            return
+
+        FichaDetalleCuenta(
+            parent=self,
+            datos=datos_cuenta,
+            on_requeue=self.reintentar_cuenta_desde_datos,
+            on_open_evidence=self.abrir_evidencias_por_parametros
+        )
+
+    def mostrar_menu_contextual_historial(self, event):
+        item_id = self.tree_historial.identify_row(event.y)
+        if not item_id:
+            return
+
+        if item_id not in self.tree_historial.selection():
+            self.tree_historial.selection_set(item_id)
+            self.actualizar_contador_historial()
+
+        datos_cuenta = self.mapa_historial_completo.get(item_id)
+        if not datos_cuenta:
+            return
+
+        def _abrir_captura(d):
+            captura = buscar_captura_error(d.get("email", ""), d.get("fecha_hora", ""), d.get("servicio", ""))
+            if captura and os.path.exists(captura):
+                try:
+                    os.startfile(captura)
+                except Exception as e:
+                    messagebox.showerror("Error", f"No se pudo abrir la captura: {e}")
+            else:
+                messagebox.showinfo("Captura no disponible", "No se encontró archivo de captura de fallo para esta cuenta.")
+
+        callbacks = {
+            "ver_ficha": lambda d: self.abrir_ficha_detalle_seleccionada(item_id),
+            "abrir_evidencias": lambda d: self.abrir_evidencias_por_parametros(
+                d.get("email", ""), d.get("fecha_hora", ""), d.get("servicio", "")
+            ),
+            "ver_captura": _abrir_captura,
+            "reenviar": self.reintentar_cuenta_desde_datos
+        }
+
+        mostrar_menu_contextual(self.tree_historial, event, datos_cuenta, callbacks)
 
     def abrir_evidencia_seleccionada(self):
         seleccion = self.tree_historial.selection()
@@ -1792,25 +1973,25 @@ class AppGideon(ctk.CTk):
 
         item = self.tree_historial.item(seleccion[0])
         valores = item["values"]
-        if not valores or len(valores) < 5:
+        if not valores or len(valores) < 6:
             return
 
         fecha_hora = str(valores[0])
         servicio = str(valores[1]).strip().upper()
         email = str(valores[5])
-        mailbox = email.split("@")[0].strip()
-        fecha_solo = fecha_hora.split(" ")[0].strip()
+        self.abrir_evidencias_por_parametros(email, fecha_hora, servicio)
 
-        # Determinar carpeta base según servicio
-        carpeta_base = "Evidencias_QA_OTT" if servicio == "OTT" else "Evidencias_QA_Fibra"
+    def abrir_evidencias_por_parametros(self, email_o_mailbox, fecha_hora, servicio):
+        servicio_clean = str(servicio).upper()
+        carpeta_base = "Evidencias_QA_OTT" if "OTT" in servicio_clean else "Evidencias_QA_Fibra"
+        mailbox = str(email_o_mailbox).split("@")[0].strip()
+        fecha_solo = str(fecha_hora).split(" ")[0].strip()
 
-        # Buscar carpeta específica de evidencias
         ruta_directa = os.path.join(carpeta_base, fecha_solo, mailbox)
         if os.path.exists(ruta_directa):
             os.startfile(ruta_directa)
             return
 
-        # Búsqueda recursiva si la fecha difiere
         encontrado = False
         if os.path.exists(carpeta_base):
             for root, dirs, files in os.walk(carpeta_base):
@@ -1835,7 +2016,7 @@ class AppGideon(ctk.CTk):
     def copiar_correo_seleccionado(self, event=None):
         seleccion = self.tree_historial.selection()
         if not seleccion:
-            messagebox.showinfo("Información", "Por favor selecciona al menos una fila para copiar su correo.")
+            messagebox.showinfo("Información", "Por favor selecciona al menos una fila para copiar su identificador.")
             return
 
         correos = []
@@ -1852,35 +2033,122 @@ class AppGideon(ctk.CTk):
                     correos.append(email)
 
         if not correos:
-            messagebox.showwarning("Atención", "No se encontraron correos válidos en las filas seleccionadas.")
+            messagebox.showwarning("Atención", "No se encontraron identificadores válidos en las filas seleccionadas.")
             return
 
-        # Copiar al portapapeles (un correo por línea)
         texto_copiado = "\n".join(correos)
         self.clipboard_clear()
         self.clipboard_append(texto_copiado)
+        self.update()
 
-        # Mensaje simple con la cantidad
         total = len(correos)
         if total == 1:
             messagebox.showinfo("Copiado", "✅ Identificador copiado al portapapeles exitosamente.")
         else:
             messagebox.showinfo("Copiado", f"✅ Se copiaron {total} identificadores al portapapeles exitosamente.")
 
-    def abrir_archivo_csv(self):
-        archivo = "cuentas_creadas.csv"
-        if os.path.exists(archivo):
+    def exportar_vista_filtrada_csv(self):
+        items = self.tree_historial.get_children()
+        if not items:
+            messagebox.showinfo("Exportar", "No hay cuentas visibles para exportar con los filtros actuales.")
+            return
+
+        dir_reportes = os.path.join("Evidencias_QA", "reportes")
+        os.makedirs(dir_reportes, exist_ok=True)
+
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ruta_archivo = os.path.join(dir_reportes, f"reporte_historial_{stamp}.csv")
+
+        columnas_csv = [
+            "Fecha_Hora", "Servicio", "Tipo_Persona", "Documento_RIF",
+            "Nombre_o_Empresa", "Email", "Telefono", "Ubicacion",
+            "Plan", "Duracion_Segundos", "Estado", "N_Cliente"
+        ]
+
+        try:
+            with open(ruta_archivo, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f)
+                writer.writerow(columnas_csv)
+
+                for item_id in items:
+                    d = self.mapa_historial_completo.get(item_id, {})
+                    writer.writerow([
+                        d.get("fecha_hora", ""),
+                        d.get("servicio", ""),
+                        d.get("tipo_persona", ""),
+                        d.get("documento_rif", ""),
+                        d.get("nombre_o_empresa", ""),
+                        d.get("email", ""),
+                        d.get("telefono", ""),
+                        d.get("ubicacion", ""),
+                        d.get("plan", ""),
+                        d.get("tiempo_total_segundos", ""),
+                        d.get("estado", ""),
+                        d.get("id_cliente", "")
+                    ])
+
             if sys.platform == "win32":
-                os.startfile(archivo)
+                os.startfile(ruta_archivo)
             elif sys.platform == "darwin":
-                subprocess.call(["open", archivo])
+                subprocess.call(["open", ruta_archivo])
             else:
-                subprocess.call(["xdg-open", archivo])
+                subprocess.call(["xdg-open", ruta_archivo])
+
+            self.log_salida(f"📄 Reporte exportado exitosamente ({len(items)} filas): {ruta_archivo}")
+        except Exception as e:
+            messagebox.showerror("Error al Exportar", f"No se pudo generar el reporte CSV:\n{e}")
+
+    def abrir_archivo_csv(self):
+        # Mantiene compatibilidad con el método anterior redirigiendo al exportador seguro
+        self.exportar_vista_filtrada_csv()
+
+    def reintentar_cuenta_desde_datos(self, datos):
+        if hasattr(self, 'btn_iniciar') and self.btn_iniciar.cget("state") == "disabled":
+            messagebox.showwarning(
+                "Procesamiento en Curso",
+                "Hay pruebas ejecutándose en este momento.\n\nEspera a que finalice la tanda actual para reenviar cuentas a la cola."
+            )
+            return
+
+        tipo_sistema = str(datos.get("tipo_persona", "")).strip()
+        ubicacion = str(datos.get("ubicacion", "")).strip()
+        plan_raw = str(datos.get("plan", "")).strip()
+
+        sin_promo = "[Sin Promo]" in plan_raw
+        plan_nombre = plan_raw.replace("[Sin Promo]", "").strip()
+
+        if plan_nombre not in CATALOGO_PLANES:
+            posibles = [k for k in CATALOGO_PLANES.keys() if plan_nombre.lower() in k.lower() or k.lower() in plan_nombre.lower()]
+            if posibles:
+                plan_nombre = posibles[0]
+            else:
+                plan_nombre = list(CATALOGO_PLANES.keys())[0] if CATALOGO_PLANES else "Compra: 400 mbps + Gold"
+
+        if tipo_sistema in ["Legal", "Government", "Personal Signature"]:
+            tipo_persona = "Persona jurídica"
+            item_nuevo = {
+                "tipo_persona": tipo_persona,
+                "tipo_rif": tipo_sistema,
+                "ubicacion": ubicacion,
+                "plan_seleccionado": plan_nombre,
+                "aplicar_promocion": not sin_promo
+            }
         else:
-            messagebox.showinfo("Información", "El archivo cuentas_creadas.csv aún no ha sido creado.")
+            tipo_persona = "Persona natural"
+            tipo_doc = tipo_sistema if tipo_sistema in ["Venezuelan", "Foreigner", "Passport"] else "Venezuelan"
+            item_nuevo = {
+                "tipo_persona": tipo_persona,
+                "tipo_doc": tipo_doc,
+                "ubicacion": ubicacion,
+                "plan_seleccionado": plan_nombre,
+                "aplicar_promocion": not sin_promo
+            }
+
+        self.matriz_cuentas.append(self.preparar_item_cuenta(item_nuevo))
+        self.refrescar_vista_cola()
+        self.log_salida(f"🔁 Cuenta de '{datos.get('nombre_o_empresa', 'Cliente')}' reincorporada a la cola con datos frescos. Ve al Centro de Control para procesarla.")
 
     def reintentar_cuenta_historial_seleccionada(self):
-        # 1. Proteger ejecución activa: Si hay pruebas corriendo, no interferir en la cola
         if hasattr(self, 'btn_iniciar') and self.btn_iniciar.cget("state") == "disabled":
             messagebox.showwarning(
                 "Procesamiento en Curso",
@@ -1895,14 +2163,13 @@ class AppGideon(ctk.CTk):
 
         agregadas = 0
         for item_id in seleccion:
-            item = self.tree_historial.item(item_id)
-            valores = item.get("values", [])
-            if not valores or len(valores) < 7:
+            datos_cuenta = self.mapa_historial_completo.get(item_id)
+            if not datos_cuenta:
                 continue
 
-            tipo_sistema = str(valores[1]).strip()
-            ubicacion = str(valores[5]).strip()
-            plan_raw = str(valores[6]).strip()
+            tipo_sistema = str(datos_cuenta.get("tipo_persona", "")).strip()
+            ubicacion = str(datos_cuenta.get("ubicacion", "")).strip()
+            plan_raw = str(datos_cuenta.get("plan", "")).strip()
 
             sin_promo = "[Sin Promo]" in plan_raw
             plan_nombre = plan_raw.replace("[Sin Promo]", "").strip()
@@ -1939,6 +2206,7 @@ class AppGideon(ctk.CTk):
 
         self.refrescar_vista_cola()
         self.log_salida(f"🔁 {agregadas} cuenta(s) del Historial reincorporadas a la cola con datos frescos. Ve al Centro de Control para procesarlas.")
+
 
     # -------------------------------------------------------------
     # ⚙️ PESTAÑA 3: CONFIGURACIÓN
