@@ -17,3 +17,9 @@ from .correlativos import (
     actualizar_correlativo_manual, formatear_error_amigable,
     registrar_cuenta_creada
 )
+from .database import (
+    DB_PATH, get_conn, cerrar_conn_hilo,
+    inicializar_base_datos, migrar_datos_legacy_si_necesario,
+    registrar_cuenta_en_bd, consultar_historial_y_kpis
+)
+from .paths import DIR_RAIZ, resolver_ruta

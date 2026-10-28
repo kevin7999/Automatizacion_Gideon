@@ -1,8 +1,9 @@
 import os
 import json
 import threading
+from core.paths import resolver_ruta
 
-CONFIG_FILE = "config_gideon.json"
+CONFIG_FILE = str(resolver_ruta("config_gideon.json", "config"))
 
 DEFAULT_CONFIG = {
     "agente_id": "Operador_Sin_Nombre",
@@ -26,10 +27,11 @@ lock_correlativo = threading.Lock()
 lock_registro = threading.Lock()
 lock_login = threading.Lock()
 
-def cargar_configuracion(ruta_archivo=CONFIG_FILE):
-    if os.path.exists(ruta_archivo):
+def cargar_configuracion(ruta_archivo=None):
+    ruta = str(resolver_ruta(ruta_archivo or "config_gideon.json", "config"))
+    if os.path.exists(ruta):
         try:
-            with open(ruta_archivo, "r", encoding="utf-8") as f:
+            with open(ruta, "r", encoding="utf-8") as f:
                 datos = json.load(f)
                 config = dict(DEFAULT_CONFIG)
                 config.update(datos)
@@ -38,9 +40,11 @@ def cargar_configuracion(ruta_archivo=CONFIG_FILE):
             return dict(DEFAULT_CONFIG)
     return dict(DEFAULT_CONFIG)
 
-def guardar_configuracion(config, ruta_archivo=CONFIG_FILE):
+def guardar_configuracion(config, ruta_archivo=None):
+    ruta = str(resolver_ruta(ruta_archivo or "config_gideon.json", "config"))
     try:
-        with open(ruta_archivo, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        with open(ruta, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
         return True
     except Exception as e:

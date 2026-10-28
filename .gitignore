@@ -1,23 +1,67 @@
+# ==========================================
+# G.I.D.E.O.N. - Reglas de Exclusión Git
+# ==========================================
+
+# --- Python y Entorno ---
 __pycache__/
 *.py[cod]
 *$py.class
-logs/
-Evidencias_QA*/
+*.so
+.env
+.env.*
+.venv/
+venv/
+env/
+ENV/
+
+# --- Secretos, Credenciales y Sesiones CRM ---
+auth_state.json
+config_gideon.json
+credenciales_google.json
+*.key
+*.pem
+*.pfx
+*.token
+Deepseek/api_key
+api_key
+
+# --- Datos y Reportes de Cuentas (PII / Privacidad) ---
 *.csv
 !catalogo_planes.csv
 !catalogo_direcciones.csv
 !catalogo_ott.csv
 !catalogo_direcciones_ott.csv
+
 *.json
-!auth_state.json
-!config_gideon.json
-.env
-.venv
-env/
-venv/
-ENV/
+!config_gideon.example.json
+
+contador_email*.txt
+
+# --- Evidencias, Logs y Capturas de Pantalla ---
+logs/
+Evidencias_QA*/
+Imagenes del flujo Ecommerce/
+debug_*
+*.log
+
+# --- Compilados, Releases y Ejecutables Pesados ---
 build/
 dist/
+_internal/
+*.exe
+*.zip
+*.tar.gz
+GIDEON_v*_Release/
+
+# Specs permitidos
 *.spec
 !GIDEON_3.5.spec
 !GIDEON_4.0.spec
+
+# --- Scripts Temporales y Scratch ---
+scratch_*.py
+automation/scratch/
+
+# --- Configuraciones de IDE ---
+.vscode/
+.idea/

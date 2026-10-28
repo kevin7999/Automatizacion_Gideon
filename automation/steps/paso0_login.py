@@ -1,14 +1,16 @@
 import os
 import re
 from core.config import lock_login
+from core.paths import resolver_ruta
 from automation.crm_helpers import escribir_en_react, hacer_clic_robusto
 
-def ejecutar_paso_0_login(browser, id_hilo, url_login, url_create, usuario_login, password_login, log_callback, check_cancel, auth_file="auth_state.json"):
+def ejecutar_paso_0_login(browser, id_hilo, url_login, url_create, usuario_login, password_login, log_callback, check_cancel, auth_file=None):
     """
     Ejecuta el Paso 0 (Login en CRM) utilizando sincronización mutex 'lock_login'
     y reutilización de tokens/cookies mediante 'auth_state.json'.
     Retorna la tupla (context, page) autenticada y posicionada en el Paso 1.
     """
+    auth_file = str(resolver_ruta(auth_file or "auth_state.json", "data/sessions"))
     max_intentos_login = 3
     login_exitoso = False
     context = None

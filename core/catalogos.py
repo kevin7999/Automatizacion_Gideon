@@ -1,13 +1,15 @@
 import os
 import csv
+from core.paths import resolver_ruta
 
-ARCHIVO_DIRECCIONES = "catalogo_direcciones.csv"
-ARCHIVO_DIRECCIONES_OTT = "catalogo_direcciones_ott.csv"
-ARCHIVO_PLANES = "catalogo_planes.csv"
-ARCHIVO_OTT = "catalogo_ott.csv"
+ARCHIVO_DIRECCIONES = str(resolver_ruta("catalogo_direcciones.csv", "data/catalogos"))
+ARCHIVO_DIRECCIONES_OTT = str(resolver_ruta("catalogo_direcciones_ott.csv", "data/catalogos"))
+ARCHIVO_PLANES = str(resolver_ruta("catalogo_planes.csv", "data/catalogos"))
+ARCHIVO_OTT = str(resolver_ruta("catalogo_ott.csv", "data/catalogos"))
 PASSWORD_DEFAULT = "Ingreso-1"
 
-def cargar_catalogo_direcciones(ruta_archivo=ARCHIVO_DIRECCIONES):
+def cargar_catalogo_direcciones(ruta_archivo=None):
+    ruta_archivo = str(resolver_ruta(ruta_archivo or "catalogo_direcciones.csv", "data/catalogos"))
     catalogo_dir = {}
     if not os.path.exists(ruta_archivo):
         try:
@@ -48,7 +50,8 @@ def cargar_catalogo_direcciones(ruta_archivo=ARCHIVO_DIRECCIONES):
         }
     return catalogo_dir
 
-def cargar_catalogo_direcciones_ott(ruta_archivo=ARCHIVO_DIRECCIONES_OTT):
+def cargar_catalogo_direcciones_ott(ruta_archivo=None):
+    ruta_archivo = str(resolver_ruta(ruta_archivo or "catalogo_direcciones_ott.csv", "data/catalogos"))
     catalogo_dir = {}
     if not os.path.exists(ruta_archivo):
         try:
@@ -92,7 +95,8 @@ def cargar_catalogo_direcciones_ott(ruta_archivo=ARCHIVO_DIRECCIONES_OTT):
         }
     return catalogo_dir
 
-def cargar_catalogo_planes(ruta_archivo=ARCHIVO_PLANES):
+def cargar_catalogo_planes(ruta_archivo=None):
+    ruta_archivo = str(resolver_ruta(ruta_archivo or "catalogo_planes.csv", "data/catalogos"))
     catalogo = {}
     if not os.path.exists(ruta_archivo):
         try:
@@ -164,7 +168,8 @@ def cargar_catalogo_planes(ruta_archivo=ARCHIVO_PLANES):
 
     return catalogo
 
-def cargar_catalogo_ott(ruta_archivo=ARCHIVO_OTT):
+def cargar_catalogo_ott(ruta_archivo=None):
+    ruta_archivo = str(resolver_ruta(ruta_archivo or "catalogo_ott.csv", "data/catalogos"))
     catalogo = {}
     if not os.path.exists(ruta_archivo):
         try:

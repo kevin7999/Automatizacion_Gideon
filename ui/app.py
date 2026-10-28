@@ -1620,8 +1620,9 @@ class AppGideon(ctk.CTk):
         # Aplicar estilo ttk y tags según el tema actual (Light/Dark)
         self.actualizar_estilo_treeview()
 
-        # Doble clic y Enter para abrir Ficha de Detalle y Diagnóstico
-        self.tree_historial.bind("<Double-1>", lambda e: self.abrir_ficha_detalle_seleccionada())
+        # Doble clic para abrir evidencias directamente en Explorer
+        self.tree_historial.bind("<Double-1>", lambda e: self.abrir_evidencia_seleccionada())
+        # Tecla Enter para abrir Ficha de Detalle y Diagnóstico
         self.tree_historial.bind("<Return>", lambda e: self.abrir_ficha_detalle_seleccionada())
 
         # Clic derecho (Windows/Linux) y <Button-2> (Mac) para Menú Contextual Moderno
